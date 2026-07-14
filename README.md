@@ -6,7 +6,7 @@
 [![CodeQL](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml/badge.svg)](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-> **Status:** pre-alpha. The immutable inference-change contract and supporting privacy-safe trace/scheduler foundations are implemented. Runtime-signature validity, evidence adapters, uncertainty gates, fault campaigns, counterexample minimization, and signed safety cases are active milestones—not shipped claims.
+> **Status:** pre-alpha. Immutable inference-change intent, exact runtime signatures, bounded evidence envelopes, compatibility/invalidation logic, and supporting privacy-safe trace/scheduler foundations are implemented. Producer adapters, uncertainty gates, fault campaigns, counterexample minimization, and signed safety cases are active milestones—not shipped claims.
 
 > **Naming:** `InferLab` is a working repository name. It conflicts with Doubleword's existing [Inference Lab](https://github.com/doublewordai/inference-lab) simulator and must be replaced before v0.1. No rename will be performed without an explicit maintainer decision.
 
@@ -76,6 +76,19 @@ go run ./cmd/inferlab change digest examples/qwen-vllm-batching-change.json
 
 See the [contract specification](docs/inference-change.md), [published JSON Schema](schemas/change/v1/inference-change.schema.json), and [complete example](examples/qwen-vllm-batching-change.json).
 
+## Runtime identity and evidence validity
+
+Evidence is reusable only when its material runtime identity is known and compatible. The v1 signature covers model and tokenizer revisions, quantization configuration, engine revision, container digest, CUDA, driver, GPU shape, topology, scheduler configuration, and material kernels. Missing values are `unknown`, never wildcards.
+
+Compatibility produces one of four results: `exact`, `compatible-by-policy`, `incompatible`, or `unknown`. A named, versioned policy may ignore a known difference, but it cannot waive missing identity. The evidence envelope separately labels observations, predictions, derived metrics, and assertions; binds them to their source, adapter, workload, attempt, timestamps, artifacts, and transformations; and rejects complete evidence with unknown runtime dimensions.
+
+```bash
+go run ./cmd/inferlab runtime validate examples/runtime-signature-l4-vllm.json
+go run ./cmd/inferlab evidence validate examples/guidellm-observed-evidence.json
+```
+
+See the [runtime and evidence contract](docs/evidence.md), [runtime schema](schemas/evidence/v1/runtime-signature.schema.json), and [evidence schema](schemas/evidence/v1/envelope.schema.json).
+
 ## Implemented supporting foundations
 
 ### Scheduler SDK
@@ -141,9 +154,11 @@ Prerequisites: Go 1.26 or newer.
 make check
 make build
 ./bin/inferlab change validate examples/qwen-vllm-batching-change.json
+./bin/inferlab runtime validate examples/runtime-signature-l4-vllm.json
+./bin/inferlab evidence validate examples/guidellm-observed-evidence.json
 ```
 
-The CLI currently validates and identifies an experiment definition. It does not yet evaluate evidence or make a release decision; those commands will land only with their schemas, conformance fixtures, and acceptance tests.
+The CLI currently validates and identifies change, runtime, and evidence documents. It does not yet normalize producer reports or make a release decision; those commands will land only with their adapters, conformance fixtures, and acceptance tests.
 
 ## Engineering standards
 
@@ -172,6 +187,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the local merge gate and review expec
 - [Competitive landscape and positioning](docs/landscape.md)
 - [ADR 0001: own release assurance, not simulation](docs/decisions/0001-evidence-plane-not-simulator.md)
 - [Inference-change contract](docs/inference-change.md)
+- [Runtime identity and evidence contract](docs/evidence.md)
 - [Trace format and privacy contract](docs/trace-format.md)
 - [Design principles](docs/design-principles.md)
 - [Security policy](SECURITY.md)

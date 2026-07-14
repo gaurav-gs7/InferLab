@@ -1,0 +1,77 @@
+{
+  "schema": "inferlab.evidence",
+  "schema_version": "1.0",
+  "name": "guidellm-observation",
+  "classification": "observed",
+  "completeness": "complete",
+  "source": {
+    "tool": "guidellm",
+    "tool_version": "0.6.0",
+    "report_schema": "guidellm-benchmark-v1",
+    "adapter": "guidellm-json",
+    "adapter_revision": "8888888888888888888888888888888888888888"
+  },
+  "runtime": {
+    "schema": "inferlab.runtime-signature",
+    "schema_version": "1.0",
+    "origin": "observed",
+    "model": {
+      "id": "qwen-qwen2.5-7b-instruct-awq",
+      "revision": "1111111111111111111111111111111111111111",
+      "tokenizer_id": "qwen-qwen2.5-7b-instruct-awq",
+      "tokenizer_revision": "2222222222222222222222222222222222222222",
+      "quantization": "awq",
+      "quantization_config_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    "engine": {
+      "name": "vllm",
+      "revision": "4444444444444444444444444444444444444444",
+      "container_image": "ghcr.io/vllm-project/vllm-openai@sha256:5555555555555555555555555555555555555555555555555555555555555555"
+    },
+    "platform": {
+      "cuda_version": "12.8",
+      "driver_version": "570.133.20",
+      "gpu_sku": "nvidia-l4",
+      "gpu_count": 1,
+      "topology": "single-gpu"
+    },
+    "scheduler": {
+      "name": "vllm-v1",
+      "config_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+    },
+    "kernels": [
+      {
+        "name": "flash-attention",
+        "version": "2.7.4",
+        "config_digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      }
+    ]
+  },
+  "workload_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+  "attempt": 1,
+  "started_at": "2026-07-14T12:00:00Z",
+  "finished_at": "2026-07-14T12:05:00Z",
+  "metrics": [
+    {
+      "name": "ttft-p99",
+      "semantics": "guidellm-request-ttft-v1",
+      "value": 812.5,
+      "unit": "milliseconds",
+      "sample_count": 1000
+    },
+    {
+      "name": "request-goodput",
+      "semantics": "guidellm-slo-goodput-v1",
+      "value": 0.97,
+      "unit": "ratio",
+      "sample_count": 1000
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "raw-report",
+      "media_type": "application/json",
+      "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  ]
+}

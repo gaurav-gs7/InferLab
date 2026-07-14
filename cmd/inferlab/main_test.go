@@ -22,6 +22,8 @@ func TestRun(t *testing.T) {
 		{name: "version", args: []string{"version"}, wantCode: 0, wantStdout: "inferlab dev"},
 		{name: "policies", args: []string{"policies"}, wantCode: 0, wantStdout: "round-robin"},
 		{name: "change usage", args: []string{"change"}, wantCode: 2, wantStderr: "inferlab change validate"},
+		{name: "evidence usage", args: []string{"evidence"}, wantCode: 2, wantStderr: "inferlab evidence validate"},
+		{name: "runtime usage", args: []string{"runtime"}, wantCode: 2, wantStderr: "inferlab runtime validate"},
 		{name: "missing command", wantCode: 2, wantStderr: "Usage:"},
 		{name: "unknown command", args: []string{"nope"}, wantCode: 2, wantStderr: "unknown command"},
 	}
@@ -32,6 +34,40 @@ func TestRun(t *testing.T) {
 			var stdout, stderr bytes.Buffer
 			if got := run(tt.args, &stdout, &stderr); got != tt.wantCode {
 				t.Fatalf("run() code = %d, want %d", got, tt.wantCode)
+			}
+			if !strings.Contains(stdout.String(), tt.wantStdout) {
+				t.Errorf("stdout %q does not contain %q", stdout.String(), tt.wantStdout)
+			}
+			if !strings.Contains(stderr.String(), tt.wantStderr) {
+				t.Errorf("stderr %q does not contain %q", stderr.String(), tt.wantStderr)
+			}
+		})
+	}
+}
+
+func TestRunEvidenceAndRuntime(t *testing.T) {
+	t.Parallel()
+	root := filepath.Join("..", "..", "examples")
+	tests := []struct {
+		name       string
+		args       []string
+		wantCode   int
+		wantStdout string
+		wantStderr string
+	}{
+		{name: "validate evidence", args: []string{"evidence", "validate", filepath.Join(root, "guidellm-observed-evidence.json")}, wantCode: 0, wantStdout: "valid guidellm-observation sha256:"},
+		{name: "digest evidence", args: []string{"evidence", "digest", filepath.Join(root, "guidellm-observed-evidence.json")}, wantCode: 0, wantStdout: "sha256:"},
+		{name: "validate runtime", args: []string{"runtime", "validate", filepath.Join(root, "runtime-signature-l4-vllm.json")}, wantCode: 0, wantStdout: "observed unknown=0"},
+		{name: "digest runtime", args: []string{"runtime", "digest", filepath.Join(root, "runtime-signature-l4-vllm.json")}, wantCode: 0, wantStdout: "sha256:"},
+		{name: "missing evidence", args: []string{"evidence", "validate", "missing.json"}, wantCode: 1, wantStderr: "open evidence envelope"},
+		{name: "missing runtime", args: []string{"runtime", "validate", "missing.json"}, wantCode: 1, wantStderr: "open runtime signature"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var stdout, stderr bytes.Buffer
+			if got := run(tt.args, &stdout, &stderr); got != tt.wantCode {
+				t.Fatalf("run() code = %d, want %d; stderr=%q", got, tt.wantCode, stderr.String())
 			}
 			if !strings.Contains(stdout.String(), tt.wantStdout) {
 				t.Errorf("stdout %q does not contain %q", stdout.String(), tt.wantStdout)

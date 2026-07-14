@@ -71,7 +71,7 @@ The change digest identifies intent, not execution. It cannot establish what sof
 
 ### Runtime signature
 
-Every evidence-producing attempt must report observed identity for all material dimensions:
+`pkg/evidence` implements the runtime signature, compatibility results, and canonical digests. Every evidence-producing attempt must report observed identity for all material dimensions:
 
 - model weights and tokenizer revisions;
 - quantization method and material quantization configuration;
@@ -86,7 +86,7 @@ Compatibility is a versioned policy result: `exact`, `compatible-by-policy`, `in
 
 ### Evidence envelope
 
-The source-neutral envelope classifies values as:
+The bounded, strict `pkg/evidence.Envelope` classifies values as:
 
 - `observed`: directly measured from an identified runtime;
 - `predicted`: emitted by a simulator or analytical model;
@@ -127,7 +127,7 @@ Traces can describe a workload for benchmark, simulator, and counterexample evid
 
 The evidence index is a directed acyclic graph connecting intent, runtime, workload, producer, raw artifact, transformation, policy, counterexample, and claim nodes. A claim is admissible only when every required dependency is present, compatible, complete, and within its validity window.
 
-Invalidation propagates through the graph. Reviewers receive the shortest machine-readable path explaining why an item was excluded—for example, candidate container changed → runtime signature incompatible → calibration stale → predicted TTFT unsupported → policy result inconclusive.
+`pkg/evidence.ValidityGraph` is an append-only dependency DAG. Invalidation propagates breadth-first, and reviewers receive a deterministic shortest machine-readable path explaining why an item was excluded—for example, candidate container changed → runtime signature incompatible → calibration stale → predicted TTFT unsupported → policy result inconclusive.
 
 ### Drift and coverage
 

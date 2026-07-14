@@ -1,0 +1,36 @@
+{
+  "schema": "inferlab.runtime-signature",
+  "schema_version": "1.0",
+  "origin": "observed",
+  "model": {
+    "id": "qwen-qwen2.5-7b-instruct-awq",
+    "revision": "1111111111111111111111111111111111111111",
+    "tokenizer_id": "qwen-qwen2.5-7b-instruct-awq",
+    "tokenizer_revision": "2222222222222222222222222222222222222222",
+    "quantization": "awq",
+    "quantization_config_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+  },
+  "engine": {
+    "name": "vllm",
+    "revision": "4444444444444444444444444444444444444444",
+    "container_image": "ghcr.io/vllm-project/vllm-openai@sha256:5555555555555555555555555555555555555555555555555555555555555555"
+  },
+  "platform": {
+    "cuda_version": "12.8",
+    "driver_version": "570.133.20",
+    "gpu_sku": "nvidia-l4",
+    "gpu_count": 1,
+    "topology": "single-gpu"
+  },
+  "scheduler": {
+    "name": "vllm-v1",
+    "config_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+  },
+  "kernels": [
+    {
+      "name": "flash-attention",
+      "version": "2.7.4",
+      "config_digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+    }
+  ]
+}

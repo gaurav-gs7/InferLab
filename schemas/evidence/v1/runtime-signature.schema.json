@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inferlab.ai/schemas/evidence/v1/runtime-signature.schema.json",
+  "title": "InferLab RuntimeSignature v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "origin", "model", "engine", "platform", "scheduler", "kernels"],
+  "properties": {
+    "schema": {"const": "inferlab.runtime-signature"},
+    "schema_version": {"const": "1.0"},
+    "origin": {"enum": ["declared", "observed"]},
+    "model": {"$ref": "#/$defs/model"},
+    "engine": {"$ref": "#/$defs/engine"},
+    "platform": {"$ref": "#/$defs/platform"},
+    "scheduler": {"$ref": "#/$defs/scheduler"},
+    "kernels": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/kernel"}
+    }
+  },
+  "$defs": {
+    "revision": {
+      "type": "string",
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9](?:[a-z0-9._-]{0,126}[a-z0-9])?$"
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {"$ref": "#/$defs/identifier"},
+        "revision": {"$ref": "#/$defs/revision"},
+        "tokenizer_id": {"$ref": "#/$defs/identifier"},
+        "tokenizer_revision": {"$ref": "#/$defs/revision"},
+        "quantization": {"$ref": "#/$defs/name"},
+        "quantization_config_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {"$ref": "#/$defs/name"},
+        "revision": {"$ref": "#/$defs/revision"},
+        "container_image": {
+          "type": "string",
+          "pattern": "^[^\\s@]+@sha256:[0-9a-f]{64}$"
+        }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cuda_version": {"$ref": "#/$defs/identifier"},
+        "driver_version": {"$ref": "#/$defs/identifier"},
+        "gpu_sku": {"$ref": "#/$defs/identifier"},
+        "gpu_count": {"type": "integer", "minimum": 1, "maximum": 1024},
+        "topology": {"$ref": "#/$defs/identifier"}
+      }
+    },
+    "scheduler": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {"$ref": "#/$defs/name"},
+        "config_digest": {"$ref": "#/$defs/digest"}
+      }
+    },
+    "kernel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "config_digest"],
+      "properties": {
+        "name": {"$ref": "#/$defs/name"},
+        "version": {"$ref": "#/$defs/identifier"},
+        "config_digest": {"$ref": "#/$defs/digest"}
+      }
+    }
+  }
+}
