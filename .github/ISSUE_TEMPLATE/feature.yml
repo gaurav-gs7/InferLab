@@ -1,0 +1,45 @@
+name: Feature proposal
+description: Propose a scheduler, validation, integration, or operational capability.
+title: "proposal: "
+labels: [proposal, triage]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the production or research problem independently of a preferred solution.
+    validations:
+      required: true
+  - type: textarea
+    id: users
+    attributes:
+      label: Users and evidence
+      description: Who needs this, and what workloads, failures, or upstream behavior demonstrate the need?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Include correctness, determinism, failure, and observability semantics.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives and trade-offs
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation plan
+      description: Tests, assertions, benchmarks, real-backend calibration, or shadow evidence required.
+    validations:
+      required: true
+  - type: textarea
+    id: security
+    attributes:
+      label: Security, privacy, and compatibility impact
+    validations:
+      required: true

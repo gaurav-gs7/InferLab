@@ -1,0 +1,59 @@
+name: Bug report
+description: Report reproducible incorrect behavior with sanitized evidence.
+title: "bug: "
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include prompts, responses, credentials, tenant identifiers, or proprietary traces. Report vulnerabilities privately through SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: InferLab version
+      description: Release tag or commit SHA.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Go version, OS/architecture, and relevant integration versions.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Commands, sanitized configuration, and a minimal synthetic trace.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: deterministic
+    attributes:
+      label: Reproducibility
+      options:
+        - Every run
+        - Intermittent with a recorded seed
+        - Intermittent without a known seed
+    validations:
+      required: true
+  - type: checkboxes
+    id: sensitive
+    attributes:
+      label: Data safety
+      options:
+        - label: I confirm this report contains no sensitive or proprietary workload data.
+          required: true

@@ -1,0 +1,23 @@
+# Build output
+/bin/
+/dist/
+/coverage/
+*.coverprofile
+*.test
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local traces may contain sensitive workload metadata.
+/traces/
+*.trace.jsonl
