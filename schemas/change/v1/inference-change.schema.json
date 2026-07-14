@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inferlab.ai/schemas/change/v1/inference-change.schema.json",
+  "title": "InferLab InferenceChange v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "name", "baseline", "candidate", "workload", "policies", "budget"],
+  "properties": {
+    "schema": {"const": "inferlab.change"},
+    "schema_version": {"const": "1.0"},
+    "name": {"type": "string", "pattern": "^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"},
+    "baseline": {"$ref": "#/$defs/configuration"},
+    "candidate": {"$ref": "#/$defs/configuration"},
+    "workload": {"$ref": "#/$defs/workload"},
+    "policies": {"$ref": "#/$defs/policies"},
+    "faults": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {"$ref": "#/$defs/fault"}
+    },
+    "budget": {"$ref": "#/$defs/budget"}
+  },
+  "$defs": {
+    "configuration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine", "model", "hardware", "scheduler"],
+      "properties": {
+        "engine": {"$ref": "#/$defs/engine"},
+        "model": {"$ref": "#/$defs/model"},
+        "hardware": {"$ref": "#/$defs/hardware"},
+        "scheduler": {"$ref": "#/$defs/scheduler"}
+      }
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "image"],
+      "properties": {
+        "name": {"const": "vllm"},
+        "image": {"type": "string", "pattern": "^[^\\s@]+@sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "revision", "quantization"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1, "maxLength": 256},
+        "revision": {"type": "string", "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"},
+        "quantization": {"enum": ["none", "awq", "gptq"]}
+      }
+    },
+    "hardware": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["accelerator", "instance_type", "replicas"],
+      "properties": {
+        "accelerator": {"const": "nvidia-l4"},
+        "instance_type": {"const": "g6.xlarge"},
+        "replicas": {"type": "integer", "minimum": 1, "maximum": 2}
+      }
+    },
+    "scheduler": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_num_batched_tokens", "max_sequences"],
+      "properties": {
+        "max_num_batched_tokens": {"type": "integer", "minimum": 1},
+        "max_sequences": {"type": "integer", "minimum": 1}
+      }
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trace", "replay_speed", "tenants"],
+      "properties": {
+        "trace": {"type": "string", "pattern": "^(?:file|s3)://"},
+        "replay_speed": {"type": "number", "exclusiveMinimum": 0, "maximum": 100},
+        "tenants": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 128,
+          "items": {"$ref": "#/$defs/tenant"}
+        }
+      }
+    },
+    "tenant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "weight"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1, "maxLength": 256},
+        "weight": {"type": "integer", "minimum": 1}
+      }
+    },
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ttft_p99_milliseconds", "tpot_p99_milliseconds", "minimum_fairness_index", "maximum_cost_per_million_tokens_usd", "maximum_violation_probability"],
+      "properties": {
+        "ttft_p99_milliseconds": {"type": "integer", "minimum": 1},
+        "tpot_p99_milliseconds": {"type": "integer", "minimum": 1},
+        "minimum_fairness_index": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "maximum_cost_per_million_tokens_usd": {"type": "number", "exclusiveMinimum": 0},
+        "maximum_violation_probability": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}
+      }
+    },
+    "fault": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "probability", "duration_seconds"],
+          "properties": {
+            "type": {"const": "replica-loss"},
+            "probability": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+            "duration_seconds": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 64,
+              "items": {"type": "integer", "minimum": 1}
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "prompt_tokens"],
+          "properties": {
+            "type": {"const": "long-context-spike"},
+            "prompt_tokens": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 64,
+              "items": {"type": "integer", "minimum": 1}
+            }
+          }
+        }
+      ]
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maximum_experiment_cost_usd", "maximum_gpu_minutes"],
+      "properties": {
+        "maximum_experiment_cost_usd": {"type": "number", "exclusiveMinimum": 0},
+        "maximum_gpu_minutes": {"type": "integer", "minimum": 1}
+      }
+    }
+  }
+}

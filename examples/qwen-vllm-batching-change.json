@@ -1,0 +1,81 @@
+{
+  "schema": "inferlab.change",
+  "schema_version": "1.0",
+  "name": "qwen-vllm-batching-change",
+  "baseline": {
+    "engine": {
+      "name": "vllm",
+      "image": "ghcr.io/vllm-project/vllm-openai@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "model": {
+      "id": "Qwen/Qwen2.5-7B-Instruct-AWQ",
+      "revision": "0123456789abcdef0123456789abcdef01234567",
+      "quantization": "awq"
+    },
+    "hardware": {
+      "accelerator": "nvidia-l4",
+      "instance_type": "g6.xlarge",
+      "replicas": 1
+    },
+    "scheduler": {
+      "max_num_batched_tokens": 4096,
+      "max_sequences": 64
+    }
+  },
+  "candidate": {
+    "engine": {
+      "name": "vllm",
+      "image": "ghcr.io/vllm-project/vllm-openai@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "model": {
+      "id": "Qwen/Qwen2.5-7B-Instruct-AWQ",
+      "revision": "0123456789abcdef0123456789abcdef01234567",
+      "quantization": "awq"
+    },
+    "hardware": {
+      "accelerator": "nvidia-l4",
+      "instance_type": "g6.xlarge",
+      "replicas": 1
+    },
+    "scheduler": {
+      "max_num_batched_tokens": 8192,
+      "max_sequences": 128
+    }
+  },
+  "workload": {
+    "trace": "s3://example-inferlab-traces/chat-production-v3.jsonl",
+    "replay_speed": 4,
+    "tenants": [
+      {
+        "name": "interactive",
+        "weight": 10
+      },
+      {
+        "name": "batch",
+        "weight": 1
+      }
+    ]
+  },
+  "policies": {
+    "ttft_p99_milliseconds": 1500,
+    "tpot_p99_milliseconds": 90,
+    "minimum_fairness_index": 0.95,
+    "maximum_cost_per_million_tokens_usd": 0.8,
+    "maximum_violation_probability": 0.1
+  },
+  "faults": [
+    {
+      "type": "replica-loss",
+      "probability": 0.05,
+      "duration_seconds": [15, 30, 60]
+    },
+    {
+      "type": "long-context-spike",
+      "prompt_tokens": [4096, 8192, 16384]
+    }
+  ],
+  "budget": {
+    "maximum_experiment_cost_usd": 6,
+    "maximum_gpu_minutes": 45
+  }
+}

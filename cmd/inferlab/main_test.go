@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -19,6 +21,7 @@ func TestRun(t *testing.T) {
 		{name: "help", args: []string{"help"}, wantCode: 0, wantStdout: "Usage:"},
 		{name: "version", args: []string{"version"}, wantCode: 0, wantStdout: "inferlab dev"},
 		{name: "policies", args: []string{"policies"}, wantCode: 0, wantStdout: "round-robin"},
+		{name: "change usage", args: []string{"change"}, wantCode: 2, wantStderr: "inferlab change validate"},
 		{name: "missing command", wantCode: 2, wantStderr: "Usage:"},
 		{name: "unknown command", args: []string{"nope"}, wantCode: 2, wantStderr: "unknown command"},
 	}
@@ -37,5 +40,60 @@ func TestRun(t *testing.T) {
 				t.Errorf("stderr %q does not contain %q", stderr.String(), tt.wantStderr)
 			}
 		})
+	}
+}
+
+func TestRunChange(t *testing.T) {
+	t.Parallel()
+
+	example := filepath.Join("..", "..", "examples", "qwen-vllm-batching-change.json")
+	tests := []struct {
+		name       string
+		args       []string
+		wantCode   int
+		wantStdout string
+		wantStderr string
+	}{
+		{name: "validate", args: []string{"change", "validate", example}, wantCode: 0, wantStdout: "valid qwen-vllm-batching"},
+		{name: "digest", args: []string{"change", "digest", example}, wantCode: 0, wantStdout: "sha256:"},
+		{name: "missing file", args: []string{"change", "validate", "missing.json"}, wantCode: 1, wantStderr: "open inference change"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var stdout, stderr bytes.Buffer
+			if got := run(tt.args, &stdout, &stderr); got != tt.wantCode {
+				t.Fatalf("run() code = %d, want %d; stderr=%q", got, tt.wantCode, stderr.String())
+			}
+			if !strings.Contains(stdout.String(), tt.wantStdout) {
+				t.Errorf("stdout %q does not contain %q", stdout.String(), tt.wantStdout)
+			}
+			if !strings.Contains(stderr.String(), tt.wantStderr) {
+				t.Errorf("stderr %q does not contain %q", stderr.String(), tt.wantStderr)
+			}
+		})
+	}
+}
+
+func TestRunChangeRejectsUnknownFields(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile(filepath.Join("..", "..", "examples", "qwen-vllm-batching-change.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	invalid := append(bytes.TrimSuffix(data, []byte("\n")), []byte("\ntrue")...)
+	path := filepath.Join(t.TempDir(), "invalid.json")
+	if err := os.WriteFile(path, invalid, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var stdout, stderr bytes.Buffer
+	if got := run([]string{"change", "validate", path}, &stdout, &stderr); got != 1 {
+		t.Fatalf("run() code = %d, want 1", got)
+	}
+	if !strings.Contains(stderr.String(), "trailing JSON value") {
+		t.Fatalf("stderr %q does not describe the validation error", stderr.String())
 	}
 }

@@ -16,9 +16,10 @@ build: ## Build the InferLab CLI.
 fmt: ## Format Go source files.
 	$(GO) fmt ./...
 
-fuzz: ## Run short trace decoder and privacy fuzz campaigns.
+fuzz: ## Run short untrusted-input and privacy fuzz campaigns.
 	$(GO) test -run '^$$' -fuzz '^FuzzDecoderNeverPanics$$' -fuzztime=$(FUZZTIME) ./pkg/trace
 	$(GO) test -run '^$$' -fuzz '^FuzzProtectorDeterministic$$' -fuzztime=$(FUZZTIME) -parallel=2 ./pkg/trace
+	$(GO) test -run '^$$' -fuzz '^FuzzDecoderNeverPanics$$' -fuzztime=$(FUZZTIME) ./pkg/change
 
 vet: ## Run Go static analysis.
 	$(GO) vet ./...

@@ -2,112 +2,124 @@
 
 ## Product boundary
 
-InferLab is a scheduler development and validation framework. It does not proxy the production data path after a policy is accepted, implement an inference engine, manage model replicas, or replace the llm-d Router.
+InferLab is an uncertainty-aware pre-production safety system for LLM inference changes. It does not serve prompts, train models, deploy candidates, or replace vLLM, SGLang, Kubernetes, or an inference gateway. It turns an immutable change proposal and a privacy-safe workload into reviewable evidence about latency, fairness, resilience, and cost.
 
-Its responsibility begins with privacy-safe scheduling metadata and ends with evidence plus an integration artifact:
+Its responsibility begins with a validated inference-change document and ends with a content-addressed safety case:
 
-1. capture a workload without raw prompt content by default;
-2. normalize observations into a versioned trace;
-3. replay the same arrivals against isolated policy instances;
-4. model worker queues, prefill, decode, cancellation, cache state, and failures;
-5. compute latency, fairness, utilization, cache, and cost metrics;
-6. evaluate machine-readable correctness assertions;
-7. shadow a candidate beside production without affecting routing;
-8. export validated configuration or plugin adapters to a serving system.
+1. validate and hash immutable experiment intent;
+2. normalize privacy-safe workload observations into a versioned trace;
+3. collect a small, actively selected set of real GPU measurements;
+4. calibrate a deterministic performance model and publish its error;
+5. replay baseline and candidate configurations on identical arrivals;
+6. search bounded fault and workload spaces for counterexamples;
+7. evaluate machine-readable latency, fairness, cost, and risk policies;
+8. return `PASS`, `BLOCK`, or `INCONCLUSIVE` with provenance; and
+9. tear down ephemeral evidence infrastructure and verify zero residual compute.
 
-## Components
+The initial support envelope is deliberately narrow: vLLM on an NVIDIA L4 (`g6.xlarge`), immutable model/container revisions, continuous-batching changes, up to two replicas, and replica-loss plus long-context-spike faults.
+
+## Evidence flow
 
 ```text
-┌──────────────────┐     ┌────────────────────┐
-│ Capture adapters │────▶│ Versioned trace log │
-│ OpenAI / Router  │     │ metadata only       │
-└──────────────────┘     └─────────┬──────────┘
-                                   │
-                                   ▼
+┌────────────────────┐   ┌────────────────────┐   ┌──────────────────┐
+│ InferenceChange v1 │   │ Privacy-safe trace │   │ Policy thresholds│
+│ immutable + hashed │   │ bounded + versioned│   │ latency/cost/risk│
+└──────────┬─────────┘   └──────────┬─────────┘   └────────┬─────────┘
+           └────────────────────────┼──────────────────────┘
+                                    ▼
                          ┌─────────────────────┐
-                         │ Deterministic engine│
-                         │ virtual clock/events│
-                         └──────┬──────────────┘
-                                │ snapshots
-                   ┌────────────┼────────────┐
-                   ▼            ▼            ▼
-             policy A      policy B      policy N
-                   └────────────┼────────────┘
-                                ▼
-                      ┌──────────────────┐
-                      │ Metrics/assertions│
-                      └────────┬─────────┘
-                               ▼
-                  report / shadow diff / exporter
+                         │ Experiment planner  │
+                         │ budget + coverage   │
+                         └──────┬────────┬─────┘
+                                │        │
+                    ┌───────────┘        └───────────┐
+                    ▼                                ▼
+          ┌──────────────────┐             ┌──────────────────┐
+          │ Sparse GPU probes│             │ Deterministic sim│
+          │ observed evidence│────────────▶│ calibrated model │
+          └──────────────────┘             └────────┬─────────┘
+                                                    ▼
+                                          ┌──────────────────┐
+                                          │ Fault/counterex. │
+                                          │ bounded search   │
+                                          └────────┬─────────┘
+                                                   ▼
+                                          ┌──────────────────┐
+                                          │ Signed safety case│
+                                          │ P/B/INCONCLUSIVE │
+                                          └──────────────────┘
 ```
+
+### Change contract
+
+`pkg/change` is the root trust boundary for experiment intent. The strict decoder bounds input size, rejects unknown fields and trailing values, and validates the supported envelope. Images require immutable SHA-256 digests; common mutable model aliases are forbidden; trace URIs may not contain credentials. Canonical JSON normalizes semantically unordered collections before producing the change digest.
+
+The digest is necessary but not sufficient provenance. A safety case must also bind the trace digest, InferLab revision, runner image, calibration dataset, random seeds, cloud resource identity, timestamps, raw output digests, and policy evaluator version.
+
+### Trace boundary
+
+The v1 trace codec records scheduling metadata with explicit units and strict limits. Tenant identities and prefix tokens are protected with domain-separated HMAC-SHA256. Raw prompt and response content are outside the default trust boundary. High-cardinality request identifiers remain in artifacts, never monitoring labels.
+
+Trace capture is not required for the first end-to-end public proof: sanitized and synthetic traces can exercise the same contract. A future capture adapter must be fail-open for serving traffic, bounded, and independently threat-modeled before it can observe production requests.
+
+### Experiment planner
+
+The planner treats cloud credits as a finite evidence budget. It chooses calibration points for expected information gain, enforces the change document's dollar and GPU-minute ceilings, and refuses a run when account state, quota, region capacity, or model licensing cannot satisfy the declared plan.
+
+Cloud workers are ephemeral. Provisioning, readiness, artifact collection, and teardown are one state machine. A successful experiment is not complete until instance termination, storage cleanup, and billing-resource verification are recorded. Interrupted runs use the same idempotent cleanup path.
+
+### Observed evidence and calibration
+
+Observed hardware measurements and simulator predictions are different evidence classes. Raw measurements record warm-up policy, repetition count, engine/model/hardware identity, token-shape distribution, batching controls, and measurement uncertainty. The profiler derives prefill, decode, memory, and batching response surfaces without rewriting observations.
+
+Calibration publishes holdout error and a validity envelope. A prediction outside that envelope is out-of-distribution and contributes to `INCONCLUSIVE`, not extrapolated certainty. Active calibration may request another real measurement only when its expected uncertainty reduction justifies the remaining budget.
+
+### Deterministic replay
+
+Replay uses a virtual monotonic clock and a priority queue ordered by `(timestamp, event-kind-order, stable-sequence)`. It never sleeps or derives results from goroutine scheduling. Baseline and candidate runs receive independent copies of mutable worker and scheduler state, the same workload, and recorded random seeds.
+
+The worker model separates prefill and decode, tracks queue state, active sequences, token budgets, continuous-batching boundaries, cache residency, cancellation, and endpoint health. Every simulated metric is labelled predicted and linked to a calibration version.
 
 ### Scheduler SDK
 
-`pkg/scheduler` is the narrow public contract shared by replay and shadow mode. Requests contain scheduling metadata, never raw prompts. Cluster snapshots and endpoint observations carry monotonic versions. Successful decisions identify the evaluated snapshot and include at least one finite explanation factor.
+`pkg/scheduler` is a narrow deterministic contract used by replay. Requests contain scheduling metadata, never raw prompts. Cluster observations carry monotonic versions. A successful decision identifies its evaluated snapshot and includes finite explanation factors.
 
-Policy implementations must:
+Policies must be concurrency-safe, honor cancellation, treat inputs as immutable, select only eligible endpoints, avoid uncontrolled wall-clock reads and randomness, use stable tie-breaking, and return typed errors for invalid input or empty candidate sets. Stateful policies receive a fresh instance for every replay.
 
-- be safe for concurrent use;
-- honor context cancellation;
-- treat request and snapshot inputs as immutable;
-- select only eligible endpoints;
-- avoid wall-clock reads and uncontrolled randomness during replay;
-- use stable endpoint ordering for deterministic tie-breaking;
-- return typed errors for invalid input and empty candidate sets.
+### Faults and counterexamples
 
-Stateful policies receive a fresh instance for every replay. Their state transition order is determined solely by the event engine.
+Fault campaigns are bounded by the change contract. The initial families are replica loss across declared durations/probabilities and long-context spikes across declared token counts. Search may refine within those bounds but cannot silently invent a stronger adversary or exceed the experiment budget.
 
-### Trace capture
+A counterexample is a reproducible input region where a mandatory policy fails. It records the minimal known trigger, search bounds, seed, metric evidence, and whether the result was observed or predicted. Aggregate improvement never overrides a mandatory violation.
 
-The capture proxy will forward OpenAI-compatible streaming and non-streaming requests while asynchronously recording a bounded metadata envelope. Raw prompts and generated content are excluded by default. Prefix affinity is represented by a keyed fingerprint whose secret is supplied by the operator and is not stored in the trace.
+### Policy evaluation and uncertainty
 
-Capture is fail-open for serving traffic: a full or unavailable trace sink increments a loss counter but does not delay the upstream request. Operators can choose a fail-closed mode only for controlled benchmark environments.
+Core policies cover time to first token, time per output token, weighted multi-tenant fairness, cost per million tokens, and maximum violation probability. Evaluators operate on distributions and confidence bounds rather than dashboard point estimates.
 
-### Deterministic replay engine
+Decision semantics are explicit:
 
-Replay uses a virtual monotonic clock and a priority queue ordered by `(timestamp, event-kind-order, stable-sequence)`. It never sleeps and does not derive simulation behavior from goroutine scheduling. Each policy run receives an independent deep copy of mutable worker and policy state.
+- `PASS`: all mandatory policies hold and uncertainty is below the declared tolerance over the required envelope;
+- `BLOCK`: at least one reproducible mandatory-policy violation is supported by adequate evidence;
+- `INCONCLUSIVE`: coverage, calibration, sample size, provenance, or infrastructure integrity is insufficient for either conclusion.
 
-Randomized policies must use a recorded seed. Reports include the seed, trace digest, configuration digest, InferLab version, and model calibration version.
+### Safety case
 
-### Worker model
-
-The initial worker model separates prefill and decode because they stress accelerators differently. It tracks queue state, active sequences, token budgets, continuous batching boundaries, cache residency, adapter residency, cancellation, and endpoint health. Calibration parameters are imported from real backends; every report discloses prediction error and avoids presenting simulated estimates as observed hardware results.
-
-### Metrics and assertions
-
-Reports distinguish observed, predicted, and derived values. Core dimensions include tenant, priority class, model, adapter, endpoint, and policy. High-cardinality request IDs remain in trace/report artifacts and are not metric labels.
-
-Assertions are first-class replay outputs. Examples include maximum tenant concurrency, deadline attainment, starvation bounds, capacity-proportional dispatch, maximum queue residence, and fairness indices. A policy that improves aggregate P99 while violating a mandatory invariant is rejected.
-
-### Shadow mode
-
-Shadow evaluation receives an immutable copy of scheduling metadata after the production decision path. It may not alter headers, endpoint choice, request body, or backpressure. Bounded queues, deadlines, and circuit breakers isolate shadow failures from production.
-
-Correlation records compare production and candidate choices using actual endpoint outcomes where available. Recommendations include confidence and sample sufficiency; they never claim causality from a simple decision mismatch.
-
-### Production integrations
-
-The primary integration target is the llm-d Router's Endpoint Picker plugin/configuration model. Adapters translate InferLab request/snapshot concepts into upstream contracts at the repository edge. The scheduler SDK does not import Kubernetes, Envoy, vLLM, SGLang, or llm-d packages, keeping the core deterministic and avoiding dependency lock-in.
-
-Integration compatibility is tested against explicit upstream versions. Generated artifacts include that target version and fail validation when an unsupported schema is requested.
+The safety case is a machine-readable manifest plus a human-readable summary. It contains immutable input digests, evidence classification, calibration/coverage results, policy outcomes, counterexamples, actual cost, limitations, and teardown proof. Signing authenticates the manifest and artifact digests; it does not transform predicted evidence into observed evidence or guarantee production safety.
 
 ## Consistency and failure semantics
 
-Version zero is reserved for unknown state. A decision must identify the exact cluster snapshot it evaluated. Replay rejects malformed state; shadow mode records and classifies it without impacting production.
+Version zero is reserved for unknown scheduler state. Replay rejects malformed state. Evidence ingestion is fail-closed: partial uploads, missing digests, mismatched identities, non-finite metrics, and ambiguous units invalidate the affected evidence.
 
-Distributed state is an advanced, experimental layer. Its contract will define queue ownership, fencing tokens, idempotent admission, quota accounting, reconciliation, and explicit fail-open/fail-closed behavior before any Redis or etcd backend is selected.
+Runner failures do not become policy failures. They are classified separately and generally yield `INCONCLUSIVE`. Retrying preserves experiment identity while recording an attempt number; observations from incompatible configurations may not be pooled.
 
 ## Compatibility policy
 
-Before v1.0, public Go packages and trace schemas may change between minor releases, with migrations documented in release notes. From v1.0, the project will follow semantic versioning, support the current and previous trace schema, and publish a deprecation window for public contracts.
+Before v1.0, public Go packages and JSON schemas may change between minor releases with migrations documented in release notes. Once evidence schemas are consumed by a released version, their meaning is immutable: corrections require a new version rather than reinterpretation. From v1.0, InferLab will follow semantic versioning and publish explicit support/deprecation windows.
 
 ## Security and privacy boundary
 
-The threat model includes prompt reconstruction, tenant identity leakage, malicious traces, decompression/size bombs, path traversal in report output, untrusted policy code, forged endpoint state, secrets in configuration, and shadow-mode resource exhaustion. Security work is scheduled before the first public release; see [SECURITY.md](../SECURITY.md) for reporting.
+The threat model includes prompt reconstruction, tenant leakage, malicious documents and traces, size/decompression bombs, path traversal, forged measurements, artifact substitution, mutable model/container references, compromised cloud workers, leaked credentials, budget exhaustion, and incomplete teardown. Secrets are references supplied at runtime, never contract fields or evidence content. See [SECURITY.md](../SECURITY.md) for vulnerability reporting.
 
-## Upstream references
+## Planned integrations
 
-- [llm-d Router architecture](https://github.com/llm-d/llm-d-router/blob/main/docs/architecture.md)
-- [Gateway API Inference Extension](https://github.com/kubernetes-sigs/gateway-api-inference-extension)
-- [vLLM documentation](https://docs.vllm.ai/)
-- [SGLang documentation](https://docs.sglang.ai/)
+The first real backend is vLLM on one L4 GPU. SGLang, llm-d, Kubernetes inference routing, capture proxies, shadow mode, and production exporters remain post-v0.1 integrations. New integrations enter at repository edges and must not weaken deterministic core contracts or mix observed and predicted evidence.

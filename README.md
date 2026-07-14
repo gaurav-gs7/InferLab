@@ -1,55 +1,61 @@
 # InferLab
 
-**Deterministic development, replay, and shadow validation for production LLM inference schedulers.**
+**Uncertainty-aware pre-production safety evidence for LLM inference changes.**
 
 [![CI](https://github.com/gaurav-gs7/InferLab/actions/workflows/ci.yml/badge.svg)](https://github.com/gaurav-gs7/InferLab/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml/badge.svg)](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-> **Status:** pre-alpha. The scheduler SDK, deterministic round-robin baseline, and versioned privacy-safe trace codec are implemented. Traffic capture, replay, fairness policies, shadow mode, and Router export are planned for subsequent milestones.
+> **Status:** pre-alpha. The immutable inference-change contract, scheduler SDK, deterministic round-robin baseline, and versioned privacy-safe trace codec are implemented. Simulation, sparse GPU calibration, fault campaigns, counterexample search, and signed safety cases are active milestones—not shipped claims.
 
-InferLab helps AI infrastructure teams answer a risky question before changing production routing:
+InferLab helps AI infrastructure teams answer a risky question before changing a model, engine, batching policy, replica count, or accelerator configuration:
 
-> What would this candidate scheduling policy have done to latency, fairness, cache affinity, and cost on the exact same workload?
+> Is this inference change safe enough to deploy, where does the evidence stop, and what is the cheapest next experiment that would reduce that uncertainty?
 
-It captures privacy-safe workload metadata, replays an identical trace against multiple policies, checks explicit SLO and fairness invariants, and compares a candidate policy with real production decisions in non-interfering shadow mode.
+InferLab is designed to combine deterministic trace replay, a calibrated performance model, a small number of real GPU measurements, bounded fault campaigns, and explicit SLO/cost/fairness policies. Its end product is a reproducible safety case with one of three decisions: `PASS`, `BLOCK`, or `INCONCLUSIVE`. The third result is deliberate: insufficient or out-of-distribution evidence must not be presented as confidence.
 
 ## Why InferLab exists
 
-Production systems such as the [llm-d Router](https://github.com/llm-d/llm-d-router), [Kubernetes Gateway API Inference Extension](https://github.com/kubernetes-sigs/gateway-api-inference-extension), [vLLM](https://github.com/vllm-project/vllm), and [SGLang](https://github.com/sgl-project/sglang) already serve and route inference traffic. InferLab is not another model server or generic gateway. It is the development and evidence layer around those systems.
+Production systems such as [vLLM](https://github.com/vllm-project/vllm), [SGLang](https://github.com/sgl-project/sglang), the [llm-d Router](https://github.com/llm-d/llm-d-router), and the [Kubernetes Gateway API Inference Extension](https://github.com/kubernetes-sigs/gateway-api-inference-extension) already serve and route inference traffic. InferLab is not another model server, gateway, or benchmark leaderboard. It is a pre-production evidence layer around serving changes.
 
-| Existing serving layer | InferLab validation layer |
+| Existing serving layer | InferLab evidence layer |
 | --- | --- |
-| Routes live requests | Replays captured scheduling metadata deterministically |
-| Optimizes current traffic | Compares counterfactual policies on identical traffic |
-| Exposes operational metrics | Proves SLO, fairness, starvation, and capacity invariants |
-| Runs the selected policy | Shadow-tests candidates without changing request routing |
-| Configures filters and scorers | Exports validated policies to production integration targets |
+| Executes live inference | Replays a fixed, privacy-safe workload before deployment |
+| Reports measurements for one configuration | Models a candidate and publishes calibration error |
+| Surfaces operational metrics | Evaluates machine-readable latency, fairness, cost, and risk policies |
+| Fails under real incidents | Searches bounded replica-loss and long-context fault spaces |
+| Deploys a chosen configuration | Produces reviewable evidence tied to immutable inputs |
 
-The first specialization is **multi-tenant admission control, bounded fairness, and SLO-aware scheduling**—areas where average latency alone can hide serious regressions.
+The v0.1 support envelope is intentionally small: single-node vLLM on an NVIDIA L4 (`g6.xlarge`), immutable model/container revisions, continuous-batching changes, multi-tenant trace replay, and two inference-specific fault families. A narrow system that can quantify its error is more useful than a broad compatibility matrix built on unvalidated assumptions.
 
 ## Target workflow
 
 ```text
-OpenAI-compatible traffic
-          │
-          ▼
-privacy-safe metadata trace ──────┐
-                                  ▼
-                         deterministic replay
-                     ┌────────────┼────────────┐
-                     ▼            ▼            ▼
-                round-robin   least-work    fair-SLO
-                     └────────────┼────────────┘
-                                  ▼
-                     metrics + invariant checks
-                                  │
-                                  ▼
-                      shadow validation report
-                                  │
-                                  ▼
-                        llm-d Router integration
+immutable change + privacy-safe trace + deployment policies
+                           │
+                           ▼
+              calibrated replay and uncertainty
+               ┌───────────┴───────────┐
+               ▼                       ▼
+        bounded fault search     sparse GPU probes
+               └───────────┬───────────┘
+                           ▼
+           counterexamples + evidence manifest
+                           │
+                           ▼
+                 PASS / BLOCK / INCONCLUSIVE
 ```
+
+## Inference-change contract
+
+Every run starts from a strict, versioned JSON document. It pins baseline and candidate engine images by digest, model revisions, supported hardware, scheduler controls, trace location, tenant weights, policy thresholds, bounded faults, and hard cost/GPU-minute ceilings. The canonical SHA-256 digest identifies the change throughout its evidence chain.
+
+```bash
+go run ./cmd/inferlab change validate examples/qwen-vllm-batching-change.json
+go run ./cmd/inferlab change digest examples/qwen-vllm-batching-change.json
+```
+
+See the [contract specification](docs/inference-change.md), [published JSON Schema](schemas/change/v1/inference-change.schema.json), and [complete example](examples/qwen-vllm-batching-change.json).
 
 ## Scheduler SDK
 
@@ -79,7 +85,7 @@ decision := scheduler.Decision{
 }
 ```
 
-See the [architecture](docs/architecture.md) for determinism, state, privacy, and integration boundaries.
+See the [architecture](docs/architecture.md) for evidence provenance, determinism, uncertainty, and integration boundaries.
 
 ## Privacy-safe traces
 
@@ -111,21 +117,24 @@ Prerequisites: Go 1.26 or newer.
 ```bash
 make check
 make build
-./bin/inferlab policies
+./bin/inferlab change validate examples/qwen-vllm-batching-change.json
 ```
 
-The current CLI reports the built-in baseline policy. Replay commands will land after the deterministic event engine, so the public interface is not built on placeholder behavior.
+The CLI currently validates and identifies an experiment definition. It does not yet claim to execute the experiment; replay and evidence commands will land only with their corresponding engines and acceptance tests.
 
 ## Engineering standards
 
 InferLab treats reproducibility and correctness as product features:
 
 - deterministic scheduling inputs and stable tie-breaking;
+- immutable change inputs and content-addressed evidence;
 - mandatory explanations for every endpoint selection;
 - privacy-safe capture with no raw prompts by default;
 - unit, race, fuzz, golden, integration, and failure-injection tests;
 - explicit fairness and SLO assertions, not dashboard-only evaluation;
 - calibrated simulation with prediction error published beside results;
+- explicit `INCONCLUSIVE` results for insufficient or out-of-distribution evidence;
+- budget ceilings and teardown verification for cloud experiments;
 - versioned schemas and compatibility policy;
 - least-privilege CI, vulnerability scanning, and supply-chain provenance;
 - honest benchmarks with committed workloads, configuration, and methodology.
@@ -135,6 +144,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the local merge gate and review expec
 ## Project documentation
 
 - [Architecture and component boundaries](docs/architecture.md)
+- [Inference-change contract](docs/inference-change.md)
 - [Trace format and privacy contract](docs/trace-format.md)
 - [Design principles](docs/design-principles.md)
 - [Security policy](SECURITY.md)
