@@ -1,6 +1,6 @@
 # Contributing to InferLab
 
-Thank you for helping build rigorous tooling for inference scheduler development. Contributions of code, traces, workload generators, calibration methodology, failure cases, documentation, and design review are welcome.
+Thank you for helping build rigorous release-assurance tooling for LLM inference changes. Contributions of adapters, evidence contracts, traces, runtime identity rules, uncertainty methodology, fault evidence, counterexamples, documentation, and design review are welcome.
 
 ## Before starting
 
@@ -25,7 +25,10 @@ Trace parser and privacy changes must also run `make fuzz`. Override the default
 ## Engineering expectations
 
 - Add tests that fail without the change.
-- Preserve deterministic replay; do not read wall time or global randomness in simulation logic.
+- Preserve deterministic normalization and evaluation; record seeds and never read uncontrolled wall time or global randomness in decision logic.
+- Keep observed, predicted, derived, and asserted evidence distinct.
+- Pin upstream producer/report versions and add conformance fixtures before claiming support.
+- Prefer an upstream contribution or adapter over duplicating an existing benchmark or simulator.
 - Return actionable errors with stable sentinel/type matching where callers need it.
 - Keep scheduling contracts free of Kubernetes and serving-engine dependencies.
 - Treat all trace input as untrusted and resource-bound parsing work.

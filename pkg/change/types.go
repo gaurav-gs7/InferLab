@@ -89,7 +89,7 @@ type Fault struct {
 	PromptTokens    []uint64 `json:"prompt_tokens,omitempty"`
 }
 
-// Budget is an authorization ceiling, not an estimated final cost.
+// Budget limits a separately authorized run; it does not authorize external action.
 type Budget struct {
 	MaximumExperimentCostUSD float64 `json:"maximum_experiment_cost_usd"`
 	MaximumGPUMinutes        uint32  `json:"maximum_gpu_minutes"`

@@ -2,124 +2,190 @@
 
 ## Product boundary
 
-InferLab is an uncertainty-aware pre-production safety system for LLM inference changes. It does not serve prompts, train models, deploy candidates, or replace vLLM, SGLang, Kubernetes, or an inference gateway. It turns an immutable change proposal and a privacy-safe workload into reviewable evidence about latency, fairness, resilience, and cost.
+InferLab is an uncertainty-aware release-assurance plane for LLM inference infrastructure changes. It does not serve prompts, generate load, emulate vLLM, operate a cluster, or own benchmark/simulator fidelity. It consumes evidence produced by those systems and answers a narrower question:
 
-Its responsibility begins with a validated inference-change document and ends with a content-addressed safety case:
+> Is the available evidence valid, compatible, sufficient, and policy-compliant for this exact proposed change?
 
-1. validate and hash immutable experiment intent;
-2. normalize privacy-safe workload observations into a versioned trace;
-3. collect a small, actively selected set of real GPU measurements;
-4. calibrate a deterministic performance model and publish its error;
-5. replay baseline and candidate configurations on identical arrivals;
-6. search bounded fault and workload spaces for counterexamples;
-7. evaluate machine-readable latency, fairness, cost, and risk policies;
-8. return `PASS`, `BLOCK`, or `INCONCLUSIVE` with provenance; and
-9. tear down ephemeral evidence infrastructure and verify zero residual compute.
+Its responsibility begins with a validated inference-change document and evidence from one or more producers. It ends with a content-addressed safety case:
 
-The initial support envelope is deliberately narrow: vLLM on an NVIDIA L4 (`g6.xlarge`), immutable model/container revisions, continuous-batching changes, up to two replicas, and replica-loss plus long-context-spike faults.
+1. identify the baseline, candidate, workload, policies, faults, and budget;
+2. normalize producer output without erasing source semantics or provenance;
+3. bind every evidence item to an exact observed runtime signature;
+4. exclude stale, incompatible, incomplete, or ambiguous evidence;
+5. calculate workload coverage, drift, uncertainty, and sample sufficiency;
+6. evaluate mandatory latency, fairness, resilience, and cost policies;
+7. minimize and verify policy-breaking counterexamples;
+8. return `PASS`, `BLOCK`, or `INCONCLUSIVE`; and
+9. package claims, limitations, evidence, and artifact digests into a signed safety case.
+
+The initial contract envelope is deliberately narrow: vLLM on an NVIDIA L4 (`g6.xlarge`), immutable model/container revisions, continuous-batching changes, up to two replicas, and bounded replica-loss plus long-context faults. This is a validation envelope, not a claim that InferLab must execute or simulate vLLM itself.
 
 ## Evidence flow
 
 ```text
-┌────────────────────┐   ┌────────────────────┐   ┌──────────────────┐
-│ InferenceChange v1 │   │ Privacy-safe trace │   │ Policy thresholds│
-│ immutable + hashed │   │ bounded + versioned│   │ latency/cost/risk│
-└──────────┬─────────┘   └──────────┬─────────┘   └────────┬─────────┘
-           └────────────────────────┼──────────────────────┘
-                                    ▼
-                         ┌─────────────────────┐
-                         │ Experiment planner  │
-                         │ budget + coverage   │
-                         └──────┬────────┬─────┘
-                                │        │
-                    ┌───────────┘        └───────────┐
-                    ▼                                ▼
-          ┌──────────────────┐             ┌──────────────────┐
-          │ Sparse GPU probes│             │ Deterministic sim│
-          │ observed evidence│────────────▶│ calibrated model │
-          └──────────────────┘             └────────┬─────────┘
-                                                    ▼
-                                          ┌──────────────────┐
-                                          │ Fault/counterex. │
-                                          │ bounded search   │
-                                          └────────┬─────────┘
-                                                   ▼
-                                          ┌──────────────────┐
-                                          │ Signed safety case│
-                                          │ P/B/INCONCLUSIVE │
-                                          └──────────────────┘
+                   ┌────────────────────┐
+                   │ InferenceChange v1 │
+                   │ intent + policies  │
+                   └─────────┬──────────┘
+                             │
+       ┌─────────────────────┼──────────────────────┐
+       ▼                     ▼                      ▼
+┌─────────────┐       ┌──────────────┐       ┌──────────────┐
+│  GuideLLM   │       │inference-perf│       │ simulators / │
+│ observations│       │ observations │       │ fault tools  │
+└──────┬──────┘       └──────┬───────┘       └──────┬───────┘
+       └─────────────────────┼──────────────────────┘
+                             ▼
+                    ┌──────────────────┐
+                    │ Adapter boundary │
+                    │ source semantics │
+                    └────────┬─────────┘
+                             ▼
+              ┌────────────────────────────┐
+              │ Evidence normalizer/index  │
+              │ provenance + runtime IDs   │
+              └──────────────┬─────────────┘
+                             ▼
+              ┌────────────────────────────┐
+              │ Validity / drift / coverage│
+              │ uncertainty / sufficiency │
+              └──────────────┬─────────────┘
+                             ▼
+              ┌────────────────────────────┐
+              │ Policy + counterexamples   │
+              └──────────────┬─────────────┘
+                             ▼
+              ┌────────────────────────────┐
+              │ Signed inference safety case│
+              │ PASS/BLOCK/INCONCLUSIVE    │
+              └────────────────────────────┘
 ```
 
-### Change contract
+## Core contracts
 
-`pkg/change` is the root trust boundary for experiment intent. The strict decoder bounds input size, rejects unknown fields and trailing values, and validates the supported envelope. Images require immutable SHA-256 digests; common mutable model aliases are forbidden; trace URIs may not contain credentials. Canonical JSON normalizes semantically unordered collections before producing the change digest.
+### Change specification
 
-The digest is necessary but not sufficient provenance. A safety case must also bind the trace digest, InferLab revision, runner image, calibration dataset, random seeds, cloud resource identity, timestamps, raw output digests, and policy evaluator version.
+`pkg/change` is the root trust boundary for experiment intent. The strict decoder bounds input size, rejects unknown fields and trailing values, and validates the supported envelope. Images require immutable SHA-256 digests; model revisions must be immutable hexadecimal identities; trace URIs may not contain credentials. Canonical JSON normalizes semantically unordered collections before producing the change digest.
+
+The change digest identifies intent, not execution. It cannot establish what software or hardware actually ran and cannot make an evidence item valid by itself.
+
+### Runtime signature
+
+Every evidence-producing attempt must report observed identity for all material dimensions:
+
+- model weights and tokenizer revisions;
+- quantization method and material quantization configuration;
+- inference-engine revision and immutable container digest;
+- CUDA/runtime, driver, and GPU SKU;
+- replica/topology and scheduler configuration; and
+- kernels or feature flags known to alter performance semantics.
+
+Declared intent, observed identity, and unknown identity are different states. A declared value is never copied into the observed signature merely because a producer omitted it. Unknown material identity prevents exact compatibility and normally contributes to `INCONCLUSIVE`.
+
+Compatibility is a versioned policy result: `exact`, `compatible-by-policy`, `incompatible`, or `unknown`. The default is exact matching. Any weaker rule must name the ignored dimension, rationale, evidence, rule version, and affected claim types. Material changes invalidate dependent evidence transitively.
+
+### Evidence envelope
+
+The source-neutral envelope classifies values as:
+
+- `observed`: directly measured from an identified runtime;
+- `predicted`: emitted by a simulator or analytical model;
+- `derived`: calculated from identified parent evidence; or
+- `asserted`: supplied metadata not independently observed.
+
+Each envelope binds source tool/revision, adapter revision, runtime signature, workload signature, attempt, timestamps, units, completeness, raw artifact digests, and transformation lineage. Normalization preserves the source value and definition. Similar labels such as TPOT, ITL, normalized TPOT, or goodput are not pooled until a versioned semantic rule proves compatibility.
+
+Partial output remains partial. Adapter crashes, missing samples, non-finite values, ambiguous units, conflicting identities, and digest mismatches fail closed for the affected claims.
+
+## Evidence producers and adapters
+
+### Adapter boundary
+
+Third-party tools remain out of process behind a bounded, versioned protocol. An adapter declares supported producer versions, report schemas, capabilities, metric mappings, and known losses. It supports cancellation and deterministic normalization; it does not reinterpret unknown fields optimistically.
+
+GuideLLM and inference-perf are the first intended observed-evidence adapters. Simulator adapters may target Vidur, LLMServingSim, Doubleword Inference Lab, InferSim, or another system. Support is claimed only after a pinned public fixture passes the same conformance suite.
+
+### Simulator role
+
+Simulation is an evidence class, not the architecture center. InferLab does not need a built-in vLLM facsimile to evaluate simulator output. A tiny analytical fixture source may exercise CI contracts, but it must not be presented as a performance model.
+
+Predictions always retain their producer identity, calibration relationship, error, and validity envelope. Predicted evidence cannot silently replace an observation required by policy. Out-of-distribution prediction yields a coverage gap and contributes to `INCONCLUSIVE`.
 
 ### Trace boundary
 
-The v1 trace codec records scheduling metadata with explicit units and strict limits. Tenant identities and prefix tokens are protected with domain-separated HMAC-SHA256. Raw prompt and response content are outside the default trust boundary. High-cardinality request identifiers remain in artifacts, never monitoring labels.
+The v1 trace codec records privacy-safe scheduling metadata with explicit units and strict limits. Tenant identities and prefix tokens are protected with domain-separated HMAC-SHA256. Raw prompt and response content are outside the default trust boundary. High-cardinality request identifiers remain in artifacts, never monitoring labels.
 
-Trace capture is not required for the first end-to-end public proof: sanitized and synthetic traces can exercise the same contract. A future capture adapter must be fail-open for serving traffic, bounded, and independently threat-modeled before it can observe production requests.
+Traces can describe a workload for benchmark, simulator, and counterexample evidence. Capture is not required for v0.1; sanitized or synthetic inputs use the same digest and provenance rules. A future production capture adapter requires a separate threat model.
 
-### Experiment planner
+### Scheduler foundation
 
-The planner treats cloud credits as a finite evidence budget. It chooses calibration points for expected information gain, enforces the change document's dollar and GPU-minute ceilings, and refuses a run when account state, quota, region capacity, or model licensing cannot satisfy the declared plan.
+`pkg/scheduler` predates the release-assurance pivot. It remains a narrow deterministic contract for fixture policies and future routing-policy evidence. It does not justify building a complete scheduler suite or vLLM execution facsimile. Any retained scheduler work must directly support an evidence, fault, or policy-gate use case.
 
-Cloud workers are ephemeral. Provisioning, readiness, artifact collection, and teardown are one state machine. A successful experiment is not complete until instance termination, storage cleanup, and billing-resource verification are recorded. Interrupted runs use the same idempotent cleanup path.
+## Validity and uncertainty
 
-### Observed evidence and calibration
+### Evidence graph
 
-Observed hardware measurements and simulator predictions are different evidence classes. Raw measurements record warm-up policy, repetition count, engine/model/hardware identity, token-shape distribution, batching controls, and measurement uncertainty. The profiler derives prefill, decode, memory, and batching response surfaces without rewriting observations.
+The evidence index is a directed acyclic graph connecting intent, runtime, workload, producer, raw artifact, transformation, policy, counterexample, and claim nodes. A claim is admissible only when every required dependency is present, compatible, complete, and within its validity window.
 
-Calibration publishes holdout error and a validity envelope. A prediction outside that envelope is out-of-distribution and contributes to `INCONCLUSIVE`, not extrapolated certainty. Active calibration may request another real measurement only when its expected uncertainty reduction justifies the remaining budget.
+Invalidation propagates through the graph. Reviewers receive the shortest machine-readable path explaining why an item was excluded—for example, candidate container changed → runtime signature incompatible → calibration stale → predicted TTFT unsupported → policy result inconclusive.
 
-### Deterministic replay
+### Drift and coverage
 
-Replay uses a virtual monotonic clock and a priority queue ordered by `(timestamp, event-kind-order, stable-sequence)`. It never sleeps or derives results from goroutine scheduling. Baseline and candidate runs receive independent copies of mutable worker and scheduler state, the same workload, and recorded random seeds.
+Calibration compares predicted and observed evidence only inside compatible runtime and workload regions. Residuals, calibration age, workload drift, and producer drift are separate signals. The system does not claim universal simulator accuracy.
 
-The worker model separates prefill and decode, tracks queue state, active sequences, token budgets, continuous-batching boundaries, cache residency, cancellation, and endpoint health. Every simulated metric is labelled predicted and linked to a calibration version.
+Coverage is measured across required concurrency, arrival rate, prompt/output length, tenant mix, request class, scheduler controls, and fault axes. Average-case coverage cannot conceal missing tails or noisy-neighbour regions. A policy may require observed evidence for selected regions even when predictions exist.
 
-### Scheduler SDK
+### Sample sufficiency
 
-`pkg/scheduler` is a narrow deterministic contract used by replay. Requests contain scheduling metadata, never raw prompts. Cluster observations carry monotonic versions. A successful decision identifies its evaluated snapshot and includes finite explanation factors.
+Evaluators use declared estimators, confidence bounds, and minimum sample rules. Measurement uncertainty, sampling uncertainty, model uncertainty, and adapter-mapping uncertainty remain distinct. Optional stopping, incompatible pooling, or missing tail samples are evidence limitations, not successful results.
 
-Policies must be concurrency-safe, honor cancellation, treat inputs as immutable, select only eligible endpoints, avoid uncontrolled wall-clock reads and randomness, use stable tie-breaking, and return typed errors for invalid input or empty candidate sets. Stateful policies receive a fresh instance for every replay.
+## Faults and counterexamples
 
-### Faults and counterexamples
+Fault contracts describe inference-infrastructure behavior rather than generic pod deletion or model-weight corruption. The vocabulary includes worker loss, Spot interruption, model-load failure, CUDA OOM, straggler GPU, KV-cache eviction storm, router partition, cancellation storm, telemetry loss, and stale performance profiles.
 
-Fault campaigns are bounded by the change contract. The initial families are replica loss across declared durations/probabilities and long-context spikes across declared token counts. Search may refine within those bounds but cannot silently invent a stronger adversary or exceed the experiment budget.
+Only faults with implemented executors or conforming external evidence adapters are supported. The initial executable subset is replica loss and long-context pressure. Each fault binds scope, trigger, seed, duration, recovery predicate, and blast radius. A campaign cannot target undeclared resources or exceed declared attempt/time/cost bounds.
 
-A counterexample is a reproducible input region where a mandatory policy fails. It records the minimal known trigger, search bounds, seed, metric evidence, and whether the result was observed or predicted. Aggregate improvement never overrides a mandatory violation.
+A counterexample is the smallest known reproducible input region where a mandatory policy fails. Minimization may operate over arrivals, concurrency, tenant mix, token distributions, and bounded fault parameters. It records every search bound and never claims global minimality. Blocking counterexamples are re-run to detect flaky predicates and quantify reproduction probability.
 
-### Policy evaluation and uncertainty
+## Policy decisions
 
-Core policies cover time to first token, time per output token, weighted multi-tenant fairness, cost per million tokens, and maximum violation probability. Evaluators operate on distributions and confidence bounds rather than dashboard point estimates.
+Core policies cover time to first token, time per output token/inter-token latency, SLO goodput, weighted multi-tenant fairness, noisy-neighbour isolation, recovery behavior, cost per successful token, and maximum violation probability.
 
 Decision semantics are explicit:
 
-- `PASS`: all mandatory policies hold and uncertainty is below the declared tolerance over the required envelope;
-- `BLOCK`: at least one reproducible mandatory-policy violation is supported by adequate evidence;
-- `INCONCLUSIVE`: coverage, calibration, sample size, provenance, or infrastructure integrity is insufficient for either conclusion.
+- `PASS`: every mandatory policy holds, required evidence classes are present, coverage is adequate, and uncertainty is within tolerance over the declared envelope;
+- `BLOCK`: adequate compatible evidence supports at least one reproducible mandatory-policy violation;
+- `INCONCLUSIVE`: identity, coverage, calibration, sample size, provenance, metric semantics, or runner integrity is insufficient for either conclusion.
 
-### Safety case
+Invalid input and failed execution are not synonyms for `BLOCK`. They are reported separately and normally prevent a decision.
 
-The safety case is a machine-readable manifest plus a human-readable summary. It contains immutable input digests, evidence classification, calibration/coverage results, policy outcomes, counterexamples, actual cost, limitations, and teardown proof. Signing authenticates the manifest and artifact digests; it does not transform predicted evidence into observed evidence or guarantee production safety.
+## Safety case
 
-## Consistency and failure semantics
+The safety case is a machine-readable evidence graph plus a human-readable summary. It contains immutable input digests, admitted and excluded evidence, runtime compatibility, coverage, uncertainty, policy outcomes, minimized counterexamples, actual cost, limitations, and cleanup status where external resources were used.
 
-Version zero is reserved for unknown scheduler state. Replay rejects malformed state. Evidence ingestion is fail-closed: partial uploads, missing digests, mismatched identities, non-finite metrics, and ambiguous units invalidate the affected evidence.
+Signing authenticates the root manifest and artifact closure. It does not make a prediction observed, make stale evidence current, or guarantee production safety. Offline verification must be possible without contacting an evidence producer.
 
-Runner failures do not become policy failures. They are classified separately and generally yield `INCONCLUSIVE`. Retrying preserves experiment identity while recording an attempt number; observations from incompatible configurations may not be pooled.
+## External execution and authorization
+
+Core evaluation is local and performs no cloud, cluster, quota, support, billing, repository-identity, or deployment mutation. Planning may inspect supplied metadata or produce an execution plan but cannot treat a budget field as authority to act.
+
+Every external mutation requires explicit operator approval for that specific action. Existing quota is an input; requesting quota is a separate administrative action. Provisioning, readiness, evidence upload, teardown, and cleanup verification form one idempotent state machine only after authorization. A run is incomplete until residual billable resources are checked.
 
 ## Compatibility policy
 
-Before v1.0, public Go packages and JSON schemas may change between minor releases with migrations documented in release notes. Once evidence schemas are consumed by a released version, their meaning is immutable: corrections require a new version rather than reinterpretation. From v1.0, InferLab will follow semantic versioning and publish explicit support/deprecation windows.
+Before v1.0, public Go packages and JSON schemas may change between minor releases with migrations documented in release notes. Once an evidence schema is consumed by a release, its meaning is immutable: corrections require a new version rather than reinterpretation. Producer support is a matrix of exact tool/report versions backed by fixtures, not an unqualified product name.
 
 ## Security and privacy boundary
 
-The threat model includes prompt reconstruction, tenant leakage, malicious documents and traces, size/decompression bombs, path traversal, forged measurements, artifact substitution, mutable model/container references, compromised cloud workers, leaked credentials, budget exhaustion, and incomplete teardown. Secrets are references supplied at runtime, never contract fields or evidence content. See [SECURITY.md](../SECURITY.md) for vulnerability reporting.
+The threat model includes prompt reconstruction, tenant leakage, malicious documents and traces, size/decompression bombs, path traversal, forged measurements, artifact substitution, mutable references, compromised adapters/workers, leaked credentials, signature confusion, budget exhaustion, and incomplete teardown. Secrets are runtime references, never change or evidence fields. See [SECURITY.md](../SECURITY.md) for reporting.
 
-## Planned integrations
+## Non-goals for v0.1
 
-The first real backend is vLLM on one L4 GPU. SGLang, llm-d, Kubernetes inference routing, capture proxies, shadow mode, and production exporters remain post-v0.1 integrations. New integrations enter at repository edges and must not weaken deterministic core contracts or mix observed and predicted evidence.
+- building a general-purpose LLM inference simulator;
+- cloning vLLM queueing, batching, KV-cache, or execution behavior;
+- competing with GuideLLM or inference-perf on load generation and visualization;
+- replacing serving engines, routers, Kubernetes controllers, or chaos platforms;
+- claiming support for a producer without pinned conformance fixtures; or
+- automatically deploying, approving, or mutating external infrastructure.
+
+See the [competitive landscape](landscape.md) for the projects that motivated these boundaries.

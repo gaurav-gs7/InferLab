@@ -1,6 +1,6 @@
 # Inference-change contract
 
-An inference-change document is the immutable experiment intent consumed by InferLab. It states what is changing, which workload and policies matter, which faults may be explored, and how much money and accelerator time the experiment is authorized to use. It is not a deployment manifest.
+An inference-change document is the immutable experiment intent consumed by InferLab. It states what is changing, which workload and policies matter, which faults may be explored, and the maximum money and accelerator time a separately authorized experiment may consume. It is neither a deployment manifest nor authority to perform an external action.
 
 The v1 schema identifier is `inferlab.change` with schema version `1.0`. Documents are strict JSON: unknown fields, trailing values, oversized input, mutable aliases, and unsupported features are rejected rather than ignored.
 
@@ -18,7 +18,7 @@ The contract pins:
 - bounded fault grids; and
 - maximum experiment cost and GPU minutes.
 
-Canonicalization sorts semantically unordered tenant and fault collections before hashing. The resulting `sha256:` digest is the primary evidence identifier. It does not prove that an experiment ran correctly; it proves which validated intent an artifact claims to describe. Later evidence manifests will additionally identify trace content, calibration data, code revision, runner image, observed AWS resources, and output artifacts.
+Canonicalization sorts semantically unordered tenant and fault collections before hashing. The resulting `sha256:` digest is the primary intent identifier. It does not prove that an experiment ran correctly; it proves which validated intent an artifact claims to describe. Evidence envelopes must additionally identify source tool and adapter revisions, exact observed runtime and workload signatures, attempts, transformations, and raw artifact digests.
 
 ## Supported envelope
 
@@ -37,7 +37,7 @@ Unsupported input produces a typed error. Adding a new engine or accelerator req
 
 Container tags alone are rejected because tags can move. Common mutable model revisions such as `main`, `master`, `latest`, and `HEAD` are rejected. Trace URIs may not contain credentials, query strings, or fragments. Fault points must be positive, strictly increasing, and bounded. Floating-point policy and budget values must be finite.
 
-The budget fields are authorization ceilings. Runners must stop before either ceiling is exceeded and must record actual usage; a valid document is not permission to exceed an account-level budget or launch unsupported resources.
+The budget fields are hard execution ceilings. A runner that has been separately authorized must stop before either ceiling is exceeded and record actual usage. A valid document never authorizes cloud, quota, support, billing, cluster, deployment, or other external-account changes.
 
 ## CLI
 

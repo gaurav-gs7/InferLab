@@ -6,45 +6,64 @@
 [![CodeQL](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml/badge.svg)](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-> **Status:** pre-alpha. The immutable inference-change contract, scheduler SDK, deterministic round-robin baseline, and versioned privacy-safe trace codec are implemented. Simulation, sparse GPU calibration, fault campaigns, counterexample search, and signed safety cases are active milestones—not shipped claims.
+> **Status:** pre-alpha. The immutable inference-change contract and supporting privacy-safe trace/scheduler foundations are implemented. Runtime-signature validity, evidence adapters, uncertainty gates, fault campaigns, counterexample minimization, and signed safety cases are active milestones—not shipped claims.
+
+> **Naming:** `InferLab` is a working repository name. It conflicts with Doubleword's existing [Inference Lab](https://github.com/doublewordai/inference-lab) simulator and must be replaced before v0.1. No rename will be performed without an explicit maintainer decision.
 
 InferLab helps AI infrastructure teams answer a risky question before changing a model, engine, batching policy, replica count, or accelerator configuration:
 
 > Is this inference change safe enough to deploy, where does the evidence stop, and what is the cheapest next experiment that would reduce that uncertainty?
 
-InferLab is designed to combine deterministic trace replay, a calibrated performance model, a small number of real GPU measurements, bounded fault campaigns, and explicit SLO/cost/fairness policies. Its end product is a reproducible safety case with one of three decisions: `PASS`, `BLOCK`, or `INCONCLUSIVE`. The third result is deliberate: insufficient or out-of-distribution evidence must not be presented as confidence.
+InferLab is designed to consume evidence from real benchmark tools, simulators, and bounded fault experiments; reject stale or incompatible evidence; evaluate explicit SLO/cost/fairness policies; and minimize the smallest known policy-breaking workload. Its end product is a reproducible safety case with one of three decisions: `PASS`, `BLOCK`, or `INCONCLUSIVE`. The third result is deliberate: insufficient, stale, or out-of-distribution evidence must not be presented as confidence.
 
 ## Why InferLab exists
 
-Production systems such as [vLLM](https://github.com/vllm-project/vllm), [SGLang](https://github.com/sgl-project/sglang), the [llm-d Router](https://github.com/llm-d/llm-d-router), and the [Kubernetes Gateway API Inference Extension](https://github.com/kubernetes-sigs/gateway-api-inference-extension) already serve and route inference traffic. InferLab is not another model server, gateway, or benchmark leaderboard. It is a pre-production evidence layer around serving changes.
+Production systems already serve and route inference traffic. [GuideLLM](https://github.com/vllm-project/guidellm) and [inference-perf](https://github.com/kubernetes-sigs/inference-perf) already generate serious endpoint benchmarks. [Vidur](https://github.com/microsoft/vidur), [LLMServingSim](https://github.com/casys-kaist/LLMServingSim), [Inference Lab](https://github.com/doublewordai/inference-lab), and [InferSim](https://github.com/alibaba/InferSim) already model inference systems. InferLab is not intended to replace any of them. It is the release-assurance plane that decides whether their evidence is valid and sufficient for a specific change.
 
-| Existing serving layer | InferLab evidence layer |
+| Evidence producer | InferLab release-assurance layer |
 | --- | --- |
-| Executes live inference | Replays a fixed, privacy-safe workload before deployment |
-| Reports measurements for one configuration | Models a candidate and publishes calibration error |
-| Surfaces operational metrics | Evaluates machine-readable latency, fairness, cost, and risk policies |
-| Fails under real incidents | Searches bounded replica-loss and long-context fault spaces |
-| Deploys a chosen configuration | Produces reviewable evidence tied to immutable inputs |
+| Generates benchmark or simulation output | Normalizes source semantics without erasing provenance |
+| Identifies one model/engine/hardware run | Invalidates reuse after a material runtime-signature change |
+| Reports latency, throughput, or goodput | Evaluates machine-readable latency, fairness, cost, and risk policies |
+| Shows that a policy failed | Minimizes and verifies the smallest known reproducing counterexample |
+| Produces reports and charts | Emits a signed evidence graph and deterministic release decision |
 
-The v0.1 support envelope is intentionally small: single-node vLLM on an NVIDIA L4 (`g6.xlarge`), immutable model/container revisions, continuous-batching changes, multi-tenant trace replay, and two inference-specific fault families. A narrow system that can quantify its error is more useful than a broad compatibility matrix built on unvalidated assumptions.
+The initial contract envelope remains intentionally small: single-node vLLM on an NVIDIA L4 (`g6.xlarge`), immutable model/container revisions, continuous-batching changes, multi-tenant workloads, and bounded replica-loss/long-context faults. Backend breadth is earned through versioned conformance fixtures, not claimed from file-format resemblance.
 
 ## Target workflow
 
 ```text
-immutable change + privacy-safe trace + deployment policies
-                           │
-                           ▼
-              calibrated replay and uncertainty
-               ┌───────────┴───────────┐
-               ▼                       ▼
-        bounded fault search     sparse GPU probes
-               └───────────┬───────────┘
-                           ▼
-           counterexamples + evidence manifest
-                           │
-                           ▼
-                 PASS / BLOCK / INCONCLUSIVE
+                         inference change
+                                │
+          ┌─────────────────────┼─────────────────────┐
+          ▼                     ▼                     ▼
+      GuideLLM            inference-perf       simulator/fault
+     observations          observations            evidence
+          └─────────────────────┼─────────────────────┘
+                                ▼
+                  evidence normalization + provenance
+                                ▼
+              runtime validity + coverage + uncertainty
+                                ▼
+              policy gate + counterexample minimization
+                                ▼
+                     PASS / BLOCK / INCONCLUSIVE
+                                ▼
+                       signed inference safety case
 ```
+
+## Intended ownership boundary
+
+The planned trusted core is limited to:
+
+- exact runtime signatures spanning model, tokenizer, engine, container, CUDA, driver, GPU, scheduler, and material kernel configuration;
+- source-neutral evidence envelopes that keep observed, predicted, and derived values distinct;
+- transitive invalidation, drift, coverage, and sample-sufficiency analysis;
+- inference-infrastructure fault semantics and bounded campaign evidence;
+- deterministic minimization and verification of SLO-breaking workloads; and
+- policy decisions and signed evidence graphs suitable for CI and deployment review.
+
+Load generation, high-fidelity simulation, model serving, routing, and generic chaos execution are integration boundaries—not product claims. See the [competitive landscape](docs/landscape.md) for the evidence behind this decision.
 
 ## Inference-change contract
 
@@ -57,7 +76,9 @@ go run ./cmd/inferlab change digest examples/qwen-vllm-batching-change.json
 
 See the [contract specification](docs/inference-change.md), [published JSON Schema](schemas/change/v1/inference-change.schema.json), and [complete example](examples/qwen-vllm-batching-change.json).
 
-## Scheduler SDK
+## Implemented supporting foundations
+
+### Scheduler SDK
 
 Policies implement one small, concurrency-safe contract:
 
@@ -87,7 +108,9 @@ decision := scheduler.Decision{
 
 See the [architecture](docs/architecture.md) for evidence provenance, determinism, uncertainty, and integration boundaries.
 
-## Privacy-safe traces
+The SDK remains useful for deterministic fixtures and future routing-policy evidence, but building a complete vLLM scheduler facsimile is not on the v0.1 critical path.
+
+### Privacy-safe traces
 
 The v1 JSONL trace codec records scheduling metadata with explicit units and strict resource bounds. Tenant identities and prefix tokens are protected with domain-separated HMAC-SHA256, optional metadata is fail-closed behind an allowlist, and raw content-shaped fields are rejected during decoding.
 
@@ -120,19 +143,21 @@ make build
 ./bin/inferlab change validate examples/qwen-vllm-batching-change.json
 ```
 
-The CLI currently validates and identifies an experiment definition. It does not yet claim to execute the experiment; replay and evidence commands will land only with their corresponding engines and acceptance tests.
+The CLI currently validates and identifies an experiment definition. It does not yet evaluate evidence or make a release decision; those commands will land only with their schemas, conformance fixtures, and acceptance tests.
 
 ## Engineering standards
 
 InferLab treats reproducibility and correctness as product features:
 
-- deterministic scheduling inputs and stable tie-breaking;
 - immutable change inputs and content-addressed evidence;
-- mandatory explanations for every endpoint selection;
+- exact runtime identity and fail-closed evidence invalidation;
+- source-neutral adapters with versioned conformance fixtures;
 - privacy-safe capture with no raw prompts by default;
 - unit, race, fuzz, golden, integration, and failure-injection tests;
 - explicit fairness and SLO assertions, not dashboard-only evaluation;
-- calibrated simulation with prediction error published beside results;
+- observed, predicted, and derived evidence kept distinct;
+- calibrated predictions with error and validity envelopes published beside results;
+- reproducible minimal counterexamples rather than percentile-only failures;
 - explicit `INCONCLUSIVE` results for insufficient or out-of-distribution evidence;
 - budget ceilings and teardown verification for cloud experiments;
 - versioned schemas and compatibility policy;
@@ -144,6 +169,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the local merge gate and review expec
 ## Project documentation
 
 - [Architecture and component boundaries](docs/architecture.md)
+- [Competitive landscape and positioning](docs/landscape.md)
+- [ADR 0001: own release assurance, not simulation](docs/decisions/0001-evidence-plane-not-simulator.md)
 - [Inference-change contract](docs/inference-change.md)
 - [Trace format and privacy contract](docs/trace-format.md)
 - [Design principles](docs/design-principles.md)
