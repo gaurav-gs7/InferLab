@@ -6,7 +6,7 @@
 [![CodeQL](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml/badge.svg)](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-> **Status:** pre-alpha. The scheduler SDK and deterministic round-robin baseline are implemented. Trace capture, replay, fairness policies, shadow mode, and Router export are tracked in the [delivery roadmap](docs/roadmap.md).
+> **Status:** pre-alpha. The scheduler SDK and deterministic round-robin baseline are implemented. Trace capture, replay, fairness policies, shadow mode, and Router export are planned for subsequent milestones.
 
 InferLab helps AI infrastructure teams answer a risky question before changing production routing:
 
@@ -112,7 +112,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the local merge gate and review expec
 ## Project documentation
 
 - [Architecture and component boundaries](docs/architecture.md)
-- [35-day delivery roadmap](docs/roadmap.md)
 - [Design principles](docs/design-principles.md)
 - [Security policy](SECURITY.md)
 - [Governance](GOVERNANCE.md)

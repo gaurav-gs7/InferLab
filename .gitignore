@@ -21,3 +21,6 @@
 # Local traces may contain sensitive workload metadata.
 /traces/
 *.trace.jsonl
+
+# Maintainer-local delivery planning
+/docs/roadmap.md
