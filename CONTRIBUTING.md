@@ -20,6 +20,8 @@ make build
 
 `make check` formats source, runs static analysis, unit tests, and the race detector. Feature-specific changes may also require fuzz, integration, benchmark, or kind-based tests documented beside that feature.
 
+Trace parser and privacy changes must also run `make fuzz`. Override the default campaign length with `FUZZTIME=1m make fuzz`.
+
 ## Engineering expectations
 
 - Add tests that fail without the change.

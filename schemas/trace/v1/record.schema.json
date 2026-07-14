@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/gaurav-gs7/InferLab/main/schemas/trace/v1/record.schema.json",
+  "title": "InferLab privacy-safe scheduling trace record v1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schema_version",
+    "sequence",
+    "arrival_offset_ns",
+    "request_id",
+    "tenant_id",
+    "model",
+    "input_tokens",
+    "max_output_tokens",
+    "priority"
+  ],
+  "properties": {
+    "schema": {
+      "const": "inferlab.trace"
+    },
+    "schema_version": {
+      "const": "1.0"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "arrival_offset_ns": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "tenant_id": {
+      "type": "string",
+      "pattern": "^tenant-hmac-sha256:[0-9a-f]{64}$"
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "input_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4000000
+    },
+    "max_output_tokens": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000000
+    },
+    "output_tokens": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "prefix_fingerprint": {
+      "type": "string",
+      "pattern": "^prefix-hmac-sha256:[0-9a-f]{64}$"
+    },
+    "adapter": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "priority": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "deadline_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "observed_ttft_ms": {
+      "type": "number",
+      "minimum": 0
+    },
+    "observed_tpot_ms": {
+      "type": "number",
+      "minimum": 0
+    },
+    "selected_endpoint": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "metadata": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {
+        "allOf": [
+          {
+            "pattern": "^[a-z][a-z0-9._-]{0,63}$"
+          },
+          {
+            "not": {
+              "pattern": "prompt|content|message|completion|generated_text|raw_request|raw_response|(^|[._-])(input|output|body)($|[._-])"
+            }
+          }
+        ]
+      },
+      "additionalProperties": {
+        "type": "string",
+        "maxLength": 512
+      }
+    }
+  },
+  "$comment": "The Go codec is normative and additionally enforces UTF-8 byte limits, total-token limits, duplicate-key rejection, finite metrics, control-character rejection, and sensitive-field checks."
+}

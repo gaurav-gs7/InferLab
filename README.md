@@ -6,7 +6,7 @@
 [![CodeQL](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml/badge.svg)](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-> **Status:** pre-alpha. The scheduler SDK and deterministic round-robin baseline are implemented. Trace capture, replay, fairness policies, shadow mode, and Router export are planned for subsequent milestones.
+> **Status:** pre-alpha. The scheduler SDK, deterministic round-robin baseline, and versioned privacy-safe trace codec are implemented. Traffic capture, replay, fairness policies, shadow mode, and Router export are planned for subsequent milestones.
 
 InferLab helps AI infrastructure teams answer a risky question before changing production routing:
 
@@ -81,6 +81,29 @@ decision := scheduler.Decision{
 
 See the [architecture](docs/architecture.md) for determinism, state, privacy, and integration boundaries.
 
+## Privacy-safe traces
+
+The v1 JSONL trace codec records scheduling metadata with explicit units and strict resource bounds. Tenant identities and prefix tokens are protected with domain-separated HMAC-SHA256, optional metadata is fail-closed behind an allowlist, and raw content-shaped fields are rejected during decoding.
+
+```go
+protector, err := trace.NewProtector(operatorKey)
+if err != nil {
+    // Handle invalid key material.
+}
+
+tenantID, err := protector.TenantID("payments-copilot")
+if err != nil {
+    // Handle invalid tenant metadata.
+}
+
+prefixID, err := protector.PrefixFingerprint("qwen-32b", tokenIDs)
+if err != nil {
+    // Handle invalid model or token metadata.
+}
+```
+
+See the [trace format specification](docs/trace-format.md) for the schema, compatibility rules, limits, and privacy boundary.
+
 ## Quick start
 
 Prerequisites: Go 1.26 or newer.
@@ -91,7 +114,7 @@ make build
 ./bin/inferlab policies
 ```
 
-The current CLI reports the built-in baseline policy. Replay commands will land after the versioned trace format and event engine, so the public interface is not built on placeholder behavior.
+The current CLI reports the built-in baseline policy. Replay commands will land after the deterministic event engine, so the public interface is not built on placeholder behavior.
 
 ## Engineering standards
 
@@ -112,6 +135,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the local merge gate and review expec
 ## Project documentation
 
 - [Architecture and component boundaries](docs/architecture.md)
+- [Trace format and privacy contract](docs/trace-format.md)
 - [Design principles](docs/design-principles.md)
 - [Security policy](SECURITY.md)
 - [Governance](GOVERNANCE.md)

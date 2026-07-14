@@ -3,8 +3,9 @@
 GO ?= go
 GOFLAGS ?=
 BIN_DIR ?= bin
+FUZZTIME ?= 10s
 
-.PHONY: build check clean fmt help test test-race vet
+.PHONY: build check clean fmt fuzz help test test-race vet
 
 help: ## Show available targets.
 	@awk 'BEGIN {FS = ":.*## "; printf "InferLab development targets:\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -14,6 +15,10 @@ build: ## Build the InferLab CLI.
 
 fmt: ## Format Go source files.
 	$(GO) fmt ./...
+
+fuzz: ## Run short trace decoder and privacy fuzz campaigns.
+	$(GO) test -run '^$$' -fuzz '^FuzzDecoderNeverPanics$$' -fuzztime=$(FUZZTIME) ./pkg/trace
+	$(GO) test -run '^$$' -fuzz '^FuzzProtectorDeterministic$$' -fuzztime=$(FUZZTIME) -parallel=2 ./pkg/trace
 
 vet: ## Run Go static analysis.
 	$(GO) vet ./...
