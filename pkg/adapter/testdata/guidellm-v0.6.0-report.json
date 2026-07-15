@@ -1,0 +1,11 @@
+{
+  "schema": "guidellm-benchmark-v1",
+  "run_id": "guidellm-conformance-001",
+  "metrics": [
+    {"name": "time-to-first-token-p99", "definition": "request-arrival-to-first-token-v1", "value": 0.8125, "unit": "seconds", "sample_count": 1000},
+    {"name": "time-per-output-token-p99", "definition": "output-phase-duration-per-generated-token-v1", "value": 0.0372, "unit": "seconds", "sample_count": 1000},
+    {"name": "request-goodput", "definition": "requests-meeting-declared-slos-v1", "value": 97, "unit": "percent", "sample_count": 1000},
+    {"name": "prompt-tokens-mean", "definition": "request-input-token-count-mean-v1", "value": 512, "unit": "tokens", "sample_count": 1000},
+    {"name": "cost-per-1k-tokens", "definition": "amortized-inference-cost-per-1k-tokens-v1", "value": 0.0025, "unit": "usd-per-1k-tokens", "sample_count": 1000}
+  ]
+}

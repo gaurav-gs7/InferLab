@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inferlab.ai/schemas/adapter/v1/input.schema.json",
+  "title": "InferLab AdapterInput v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "producer", "classification", "completeness", "runtime", "workload_digest", "attempt", "started_at", "report"],
+  "properties": {
+    "name": {"$ref": "#/$defs/name"},
+    "producer": {"$ref": "#/$defs/producer"},
+    "classification": {"enum": ["observed", "predicted"]},
+    "completeness": {"enum": ["complete", "partial"]},
+    "runtime": {"$ref": "../../evidence/v1/runtime-signature.schema.json"},
+    "workload_digest": {"$ref": "#/$defs/digest"},
+    "attempt": {"type": "integer", "minimum": 1},
+    "started_at": {"type": "string", "format": "date-time"},
+    "finished_at": {"type": "string", "format": "date-time"},
+    "report": {}
+  },
+  "$defs": {
+    "name": {"type": "string", "pattern": "^[a-z0-9](?:[a-z0-9._-]{0,126}[a-z0-9])?$"},
+    "identifier": {"type": "string", "minLength": 1, "maxLength": 256},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "producer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tool", "tool_version", "report_schema"],
+      "properties": {
+        "tool": {"$ref": "#/$defs/name"},
+        "tool_version": {"$ref": "#/$defs/identifier"},
+        "report_schema": {"$ref": "#/$defs/identifier"}
+      }
+    }
+  }
+}

@@ -21,6 +21,10 @@ func TestRun(t *testing.T) {
 		{name: "help", args: []string{"help"}, wantCode: 0, wantStdout: "Usage:"},
 		{name: "version", args: []string{"version"}, wantCode: 0, wantStdout: "inferlab dev"},
 		{name: "policies", args: []string{"policies"}, wantCode: 0, wantStdout: "round-robin"},
+		{name: "adapter usage", args: []string{"adapter"}, wantCode: 2, wantStderr: "inferlab adapter list"},
+		{name: "adapter list", args: []string{"adapter", "list"}, wantCode: 0, wantStdout: "guidellm-fixture-v1"},
+		{name: "adapter capabilities", args: []string{"adapter", "capabilities", "predicted-json-v1"}, wantCode: 0, wantStdout: "inferlab-predicted-metrics-v1"},
+		{name: "unknown adapter", args: []string{"adapter", "capabilities", "missing"}, wantCode: 1, wantStderr: "unknown adapter"},
 		{name: "change usage", args: []string{"change"}, wantCode: 2, wantStderr: "inferlab change validate"},
 		{name: "evidence usage", args: []string{"evidence"}, wantCode: 2, wantStderr: "inferlab evidence validate"},
 		{name: "runtime usage", args: []string{"runtime"}, wantCode: 2, wantStderr: "inferlab runtime validate"},
@@ -76,6 +80,18 @@ func TestRunEvidenceAndRuntime(t *testing.T) {
 				t.Errorf("stderr %q does not contain %q", stderr.String(), tt.wantStderr)
 			}
 		})
+	}
+}
+
+func TestRunAdapterNormalize(t *testing.T) {
+	t.Parallel()
+	example := filepath.Join("..", "..", "examples", "guidellm-adapter-input.json")
+	var stdout, stderr bytes.Buffer
+	if got := run([]string{"adapter", "normalize", "guidellm-fixture-v1", example}, &stdout, &stderr); got != 0 {
+		t.Fatalf("run() code = %d, want 0; stderr=%q", got, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"schema":"inferlab.normalized-report"`) || !strings.Contains(stdout.String(), `"value":812.5`) {
+		t.Fatalf("stdout does not contain normalized evidence: %q", stdout.String())
 	}
 }
 

@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/gaurav-gs7/InferLab/internal/buildinfo"
+	"github.com/gaurav-gs7/InferLab/pkg/adapter"
 	"github.com/gaurav-gs7/InferLab/pkg/change"
 	"github.com/gaurav-gs7/InferLab/pkg/evidence"
 )
@@ -17,12 +19,21 @@ Usage:
   inferlab <command>
 
 Commands:
+  adapter    List adapters, inspect capabilities, or normalize evidence
   change     Validate or digest an inference-change document
   evidence   Validate or digest an evidence envelope
   runtime    Validate or digest a runtime signature
   policies   List built-in scheduling policies
   version    Print build version information
   help       Show this help
+`
+
+const adapterUsage = `Usage:
+  inferlab adapter list
+  inferlab adapter capabilities <name>
+  inferlab adapter normalize <name> <input-path>
+  inferlab adapter validate <normalized-report-path>
+  inferlab adapter digest <normalized-report-path>
 `
 
 const changeUsage = `Usage:
@@ -59,6 +70,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	case "change":
 		return runChange(args[1:], stdout, stderr)
+	case "adapter":
+		return runAdapter(args[1:], stdout, stderr)
 	case "evidence":
 		return runEvidence(args[1:], stdout, stderr)
 	case "runtime":
@@ -70,6 +83,90 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "unknown command %q\n\n%s", args[0], usage)
 		return 2
 	}
+}
+
+func runAdapter(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 1 && args[0] == "list" {
+		for _, implementation := range adapter.Builtins() {
+			capabilities := implementation.Capabilities()
+			classes := make([]string, 0, len(capabilities.Classifications))
+			for _, classification := range capabilities.Classifications {
+				classes = append(classes, string(classification))
+			}
+			fmt.Fprintf(stdout, "%s\t%s@%s\t%s\n", capabilities.Adapter.Name, capabilities.Producer.Tool, capabilities.Producer.ToolVersion, strings.Join(classes, ","))
+		}
+		return 0
+	}
+	if len(args) == 2 && args[0] == "capabilities" {
+		implementation, ok := adapter.Builtin(args[1])
+		if !ok {
+			fmt.Fprintf(stderr, "unknown adapter %q\n", args[1])
+			return 1
+		}
+		encoded, err := adapter.MarshalCapabilities(implementation.Capabilities())
+		if err != nil {
+			fmt.Fprintf(stderr, "encode capabilities: %v\n", err)
+			return 1
+		}
+		fmt.Fprintln(stdout, string(encoded))
+		return 0
+	}
+	if len(args) == 3 && args[0] == "normalize" {
+		implementation, ok := adapter.Builtin(args[1])
+		if !ok {
+			fmt.Fprintf(stderr, "unknown adapter %q\n", args[1])
+			return 1
+		}
+		file, err := os.Open(args[2])
+		if err != nil {
+			fmt.Fprintf(stderr, "open adapter input: %v\n", err)
+			return 1
+		}
+		defer file.Close()
+		input, err := adapter.DecodeInput(file)
+		if err != nil {
+			fmt.Fprintf(stderr, "invalid adapter input: %v\n", err)
+			return 1
+		}
+		report, err := implementation.Normalize(input)
+		if err != nil {
+			fmt.Fprintf(stderr, "normalize evidence: %v\n", err)
+			return 1
+		}
+		encoded, err := adapter.CanonicalJSON(report)
+		if err != nil {
+			fmt.Fprintf(stderr, "encode normalized report: %v\n", err)
+			return 1
+		}
+		fmt.Fprintln(stdout, string(encoded))
+		return 0
+	}
+	if len(args) == 2 && (args[0] == "validate" || args[0] == "digest") {
+		file, err := os.Open(args[1])
+		if err != nil {
+			fmt.Fprintf(stderr, "open normalized report: %v\n", err)
+			return 1
+		}
+		defer file.Close()
+		report, err := adapter.DecodeNormalizedReport(file)
+		if err != nil {
+			fmt.Fprintf(stderr, "invalid normalized report: %v\n", err)
+			return 1
+		}
+		digest, err := adapter.Digest(report)
+		if err != nil {
+			fmt.Fprintf(stderr, "digest normalized report: %v\n", err)
+			return 1
+		}
+		if args[0] == "digest" {
+			fmt.Fprintln(stdout, digest)
+			return 0
+		}
+		fmt.Fprintf(stdout, "valid %s %s %s\n", report.Adapter.Name, digest, report.Envelope.Classification)
+		return 0
+	}
+	fmt.Fprint(stderr, adapterUsage)
+	return 2
 }
 
 func runEvidence(args []string, stdout, stderr io.Writer) int {

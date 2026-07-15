@@ -1,0 +1,9 @@
+{
+  "schema": "inferlab-predicted-metrics-v1",
+  "run_id": "analytical-conformance-001",
+  "metrics": [
+    {"name": "ttft-p99", "definition": "request-arrival-to-first-token-v1", "value": 845, "unit": "milliseconds", "sample_count": 4000},
+    {"name": "request-goodput", "definition": "requests-meeting-declared-slos-v1", "value": 0.94, "unit": "probability", "sample_count": 4000},
+    {"name": "slo-violation-probability", "definition": "posterior-policy-violation-probability-v1", "value": 6, "unit": "percent", "sample_count": 4000}
+  ]
+}

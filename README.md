@@ -6,7 +6,7 @@
 [![CodeQL](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml/badge.svg)](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-> **Status:** pre-alpha. Immutable inference-change intent, exact runtime signatures, bounded evidence envelopes, compatibility/invalidation logic, and supporting privacy-safe trace/scheduler foundations are implemented. Producer adapters, uncertainty gates, fault campaigns, counterexample minimization, and signed safety cases are active milestones—not shipped claims.
+> **Status:** pre-alpha. Immutable inference-change intent, exact runtime signatures, bounded evidence envelopes, compatibility/invalidation logic, and bounded lossless adapter normalization are implemented. Uncertainty gates, fault campaigns, counterexample minimization, and signed safety cases are active milestones—not shipped claims.
 
 > **Naming:** `InferLab` is a working repository name. It conflicts with Doubleword's existing [Inference Lab](https://github.com/doublewordai/inference-lab) simulator and must be replaced before v0.1. No rename will be performed without an explicit maintainer decision.
 
@@ -89,6 +89,20 @@ go run ./cmd/inferlab evidence validate examples/guidellm-observed-evidence.json
 
 See the [runtime and evidence contract](docs/evidence.md), [runtime schema](schemas/evidence/v1/runtime-signature.schema.json), and [evidence schema](schemas/evidence/v1/envelope.schema.json).
 
+## Evidence adapters and lossless normalization
+
+The adapter boundary pins the producer tool, version, report schema, adapter revision, source metric definition, and source unit before conversion. Original values and definitions remain beside explicit mapping records; the normalized evidence envelope is cryptographically bound to the exact raw report bytes. GuideLLM TPOT and inference-perf ITL remain separate semantics even when both use milliseconds.
+
+External adapters run without a shell behind a versioned capability/normalize protocol with bounded input and output, strict JSON, an empty-by-default environment, cancellation, structured failures, and core-side response validation. Built-in GuideLLM and inference-perf support is deliberately limited to committed conformance projections; it is not advertised as broad native report compatibility. A generic constructor enforces predicted-only analytical adapters.
+
+```bash
+go run ./cmd/inferlab adapter list
+go run ./cmd/inferlab adapter capabilities guidellm-fixture-v1
+go run ./cmd/inferlab adapter normalize guidellm-fixture-v1 examples/guidellm-adapter-input.json
+```
+
+See the [adapter protocol and normalization specification](docs/adapters.md), [protocol schemas](schemas/adapter/v1), and [public-safe conformance fixtures](pkg/adapter/testdata).
+
 ## Implemented supporting foundations
 
 ### Scheduler SDK
@@ -156,9 +170,10 @@ make build
 ./bin/inferlab change validate examples/qwen-vllm-batching-change.json
 ./bin/inferlab runtime validate examples/runtime-signature-l4-vllm.json
 ./bin/inferlab evidence validate examples/guidellm-observed-evidence.json
+./bin/inferlab adapter normalize guidellm-fixture-v1 examples/guidellm-adapter-input.json
 ```
 
-The CLI currently validates and identifies change, runtime, and evidence documents. It does not yet normalize producer reports or make a release decision; those commands will land only with their adapters, conformance fixtures, and acceptance tests.
+The CLI validates and identifies change, runtime, evidence, and normalized-report documents, and normalizes pinned producer fixtures. It does not yet make a release decision; that command will land only with the uncertainty gate and its acceptance tests.
 
 ## Engineering standards
 
@@ -188,6 +203,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the local merge gate and review expec
 - [ADR 0001: own release assurance, not simulation](docs/decisions/0001-evidence-plane-not-simulator.md)
 - [Inference-change contract](docs/inference-change.md)
 - [Runtime identity and evidence contract](docs/evidence.md)
+- [Adapter protocol and lossless normalization](docs/adapters.md)
 - [Trace format and privacy contract](docs/trace-format.md)
 - [Design principles](docs/design-principles.md)
 - [Security policy](SECURITY.md)

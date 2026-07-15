@@ -22,6 +22,7 @@ fuzz: ## Run short untrusted-input and privacy fuzz campaigns.
 	$(GO) test -run '^$$' -fuzz '^FuzzDecoderNeverPanics$$' -fuzztime=$(FUZZTIME) ./pkg/change
 	$(GO) test -run '^$$' -fuzz '^FuzzDecoderNeverPanics$$' -fuzztime=$(FUZZTIME) ./pkg/evidence
 	$(GO) test -run '^$$' -fuzz '^FuzzRuntimeDecoderNeverPanics$$' -fuzztime=$(FUZZTIME) ./pkg/evidence
+	$(GO) test -run '^$$' -fuzz '^FuzzDecoderNeverPanics$$' -fuzztime=$(FUZZTIME) ./pkg/adapter
 
 vet: ## Run Go static analysis.
 	$(GO) vet ./...

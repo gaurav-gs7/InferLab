@@ -1,0 +1,10 @@
+{
+  "schema": "inference-perf-results-v1",
+  "run_id": "inference-perf-conformance-001",
+  "metrics": [
+    {"name": "ttft-p99", "definition": "request-arrival-to-first-token-v1", "value": 790000, "unit": "microseconds", "sample_count": 1200},
+    {"name": "inter-token-latency-p99", "definition": "adjacent-output-token-gap-v1", "value": 34500, "unit": "microseconds", "sample_count": 1200},
+    {"name": "output-token-throughput", "definition": "successful-output-tokens-per-wall-second-v1", "value": 118.4, "unit": "tokens-per-second", "sample_count": 1200},
+    {"name": "offered-concurrency", "definition": "simultaneous-client-workers-v1", "value": 16, "unit": "requests", "sample_count": 1200}
+  ]
+}

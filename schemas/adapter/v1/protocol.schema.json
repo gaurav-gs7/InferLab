@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inferlab.ai/schemas/adapter/v1/protocol.schema.json",
+  "title": "InferLab out-of-process adapter protocol v1",
+  "oneOf": [
+    {"$ref": "#/$defs/request"},
+    {"$ref": "#/$defs/response"}
+  ],
+  "$defs": {
+    "request_id": {"type": "string", "pattern": "^[a-z0-9](?:[a-z0-9._-]{0,126}[a-z0-9])?$"},
+    "base": {
+      "type": "object",
+      "required": ["schema", "schema_version", "request_id"],
+      "properties": {
+        "schema": {"const": "inferlab.adapter-protocol"},
+        "schema_version": {"const": "1.0"},
+        "request_id": {"$ref": "#/$defs/request_id"}
+      }
+    },
+    "request": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["schema", "schema_version", "request_id", "operation"],
+          "properties": {
+            "schema": {"const": "inferlab.adapter-protocol"}, "schema_version": {"const": "1.0"},
+            "request_id": {"$ref": "#/$defs/request_id"},
+            "operation": {"enum": ["capabilities", "normalize"]},
+            "input": {"$ref": "input.schema.json"}
+          },
+          "allOf": [
+            {"if": {"properties": {"operation": {"const": "capabilities"}}}, "then": {"not": {"required": ["input"]}}},
+            {"if": {"properties": {"operation": {"const": "normalize"}}}, "then": {"required": ["input"]}}
+          ]
+        }
+      ]
+    },
+    "failure": {
+      "type": "object", "additionalProperties": false, "required": ["code", "message"],
+      "properties": {"code": {"type": "string"}, "message": {"type": "string", "maxLength": 1024}}
+    },
+    "response": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema", "schema_version", "request_id"],
+      "properties": {
+        "schema": {"const": "inferlab.adapter-protocol"}, "schema_version": {"const": "1.0"},
+        "request_id": {"$ref": "#/$defs/request_id"},
+        "capabilities": {"$ref": "capabilities.schema.json"},
+        "report": {"$ref": "normalized-report.schema.json"},
+        "failure": {"$ref": "#/$defs/failure"}
+      },
+      "oneOf": [
+        {"required": ["capabilities"]}, {"required": ["report"]}, {"required": ["failure"]}
+      ]
+    }
+  }
+}

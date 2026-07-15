@@ -1,0 +1,91 @@
+{
+  "name": "guidellm-conformance-observation",
+  "producer": {
+    "tool": "guidellm",
+    "tool_version": "0.6.0",
+    "report_schema": "guidellm-benchmark-v1"
+  },
+  "classification": "observed",
+  "completeness": "complete",
+  "runtime": {
+    "schema": "inferlab.runtime-signature",
+    "schema_version": "1.0",
+    "origin": "observed",
+    "model": {
+      "id": "qwen-qwen2.5-7b-instruct-awq",
+      "revision": "1111111111111111111111111111111111111111",
+      "tokenizer_id": "qwen-qwen2.5-7b-instruct-awq",
+      "tokenizer_revision": "2222222222222222222222222222222222222222",
+      "quantization": "awq",
+      "quantization_config_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    "engine": {
+      "name": "vllm",
+      "revision": "4444444444444444444444444444444444444444",
+      "container_image": "ghcr.io/vllm-project/vllm-openai@sha256:5555555555555555555555555555555555555555555555555555555555555555"
+    },
+    "platform": {
+      "cuda_version": "12.8",
+      "driver_version": "570.133.20",
+      "gpu_sku": "nvidia-l4",
+      "gpu_count": 1,
+      "topology": "single-gpu"
+    },
+    "scheduler": {
+      "name": "vllm-v1",
+      "config_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+    },
+    "kernels": [
+      {
+        "name": "flash-attention",
+        "version": "2.7.4",
+        "config_digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      }
+    ]
+  },
+  "workload_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+  "attempt": 1,
+  "started_at": "2026-07-15T08:00:00Z",
+  "finished_at": "2026-07-15T08:05:00Z",
+  "report": {
+    "schema": "guidellm-benchmark-v1",
+    "run_id": "guidellm-conformance-001",
+    "metrics": [
+      {
+        "name": "time-to-first-token-p99",
+        "definition": "request-arrival-to-first-token-v1",
+        "value": 0.8125,
+        "unit": "seconds",
+        "sample_count": 1000
+      },
+      {
+        "name": "time-per-output-token-p99",
+        "definition": "output-phase-duration-per-generated-token-v1",
+        "value": 0.0372,
+        "unit": "seconds",
+        "sample_count": 1000
+      },
+      {
+        "name": "request-goodput",
+        "definition": "requests-meeting-declared-slos-v1",
+        "value": 97,
+        "unit": "percent",
+        "sample_count": 1000
+      },
+      {
+        "name": "prompt-tokens-mean",
+        "definition": "request-input-token-count-mean-v1",
+        "value": 512,
+        "unit": "tokens",
+        "sample_count": 1000
+      },
+      {
+        "name": "cost-per-1k-tokens",
+        "definition": "amortized-inference-cost-per-1k-tokens-v1",
+        "value": 0.0025,
+        "unit": "usd-per-1k-tokens",
+        "sample_count": 1000
+      }
+    ]
+  }
+}
