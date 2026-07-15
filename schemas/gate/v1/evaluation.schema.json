@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://inferlab.ai/schemas/gate/v1/evaluation.schema.json",
+  "title": "InferLab GateEvaluation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "name", "change_digest", "evaluated_at", "max_evidence_age_seconds", "confidence_level", "maximum_violation_probability", "target_runtime", "regions", "rules", "evidence"],
+  "properties": {
+    "schema": {"const": "inferlab.gate-evaluation"},
+    "schema_version": {"const": "1.0"},
+    "name": {"$ref": "#/$defs/name"},
+    "change_digest": {"$ref": "#/$defs/digest"},
+    "evaluated_at": {"type": "string", "format": "date-time"},
+    "max_evidence_age_seconds": {"type": "integer", "minimum": 1, "maximum": 7776000},
+    "confidence_level": {"const": 0.95},
+    "maximum_violation_probability": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.5},
+    "target_runtime": {"$ref": "../../evidence/v1/runtime-signature.schema.json"},
+    "compatibility_policy": {"$ref": "#/$defs/compatibility_policy"},
+    "regions": {"type": "array", "minItems": 1, "maxItems": 128, "items": {"$ref": "#/$defs/region"}},
+    "rules": {"type": "array", "minItems": 1, "maxItems": 256, "items": {"$ref": "#/$defs/rule"}},
+    "evidence": {"type": "array", "maxItems": 512, "items": {"$ref": "#/$defs/evidence_node"}}
+  },
+  "$defs": {
+    "name": {"type": "string", "pattern": "^[a-z0-9](?:[a-z0-9._-]{0,126}[a-z0-9])?$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "dimension": {"enum": ["model.id", "model.revision", "model.tokenizer_id", "model.tokenizer_revision", "model.quantization", "model.quantization_config_digest", "engine.name", "engine.revision", "engine.container_image", "platform.cuda_version", "platform.driver_version", "platform.gpu_sku", "platform.gpu_count", "platform.topology", "scheduler.name", "scheduler.config_digest", "kernels"]},
+    "compatibility_policy": {
+      "type": "object", "additionalProperties": false, "required": ["name", "version", "ignored_dimensions"],
+      "properties": {
+        "name": {"$ref": "#/$defs/name"}, "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$"},
+        "ignored_dimensions": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/dimension"}}
+      }
+    },
+    "load": {
+      "type": "object", "additionalProperties": false,
+      "required": ["concurrency", "prompt_tokens", "output_tokens", "tenant_count", "arrival_rate_per_second"],
+      "properties": {
+        "concurrency": {"type": "integer", "minimum": 1}, "prompt_tokens": {"type": "integer", "minimum": 1},
+        "output_tokens": {"type": "integer", "minimum": 1}, "tenant_count": {"type": "integer", "minimum": 1},
+        "arrival_rate_per_second": {"type": "number", "exclusiveMinimum": 0}
+      }
+    },
+    "fault": {
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["type"], "properties": {"type": {"const": "none"}}},
+        {"type": "object", "additionalProperties": false, "required": ["type", "lost_replicas", "duration_seconds"], "properties": {"type": {"const": "replica-loss"}, "lost_replicas": {"const": 1}, "duration_seconds": {"type": "integer", "minimum": 1, "maximum": 600}}},
+        {"type": "object", "additionalProperties": false, "required": ["type", "long_context_tokens", "long_context_fraction"], "properties": {"type": {"const": "long-context-spike"}, "long_context_tokens": {"type": "integer", "minimum": 4096, "maximum": 262144}, "long_context_fraction": {"type": "number", "minimum": 0.01, "maximum": 1, "multipleOf": 0.01}}}
+      ]
+    },
+    "region": {
+      "type": "object", "additionalProperties": false,
+      "required": ["name", "workload_digest", "minimum", "maximum", "fault"],
+      "properties": {"name": {"$ref": "#/$defs/name"}, "workload_digest": {"$ref": "#/$defs/digest"}, "minimum": {"$ref": "#/$defs/load"}, "maximum": {"$ref": "#/$defs/load"}, "fault": {"$ref": "#/$defs/fault"}}
+    },
+    "rule": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "region", "metric", "semantics", "unit", "direction", "threshold", "minimum_samples"],
+      "properties": {
+        "id": {"$ref": "#/$defs/name"}, "region": {"$ref": "#/$defs/name"}, "metric": {"$ref": "#/$defs/name"},
+        "semantics": {"$ref": "#/$defs/name"}, "unit": {"type": "string"}, "direction": {"enum": ["at-most", "at-least"]},
+        "threshold": {"type": "number", "minimum": 0}, "minimum_samples": {"type": "integer", "minimum": 1}
+      },
+      "oneOf": [
+        {"properties": {"metric": {"const": "ttft-p99"}, "semantics": {"const": "request-arrival-to-first-token-v1"}, "unit": {"const": "milliseconds"}, "direction": {"const": "at-most"}}},
+        {"properties": {"metric": {"const": "tpot-p99"}, "semantics": {"const": "output-phase-duration-per-generated-token-v1"}, "unit": {"const": "milliseconds"}, "direction": {"const": "at-most"}}},
+        {"properties": {"metric": {"const": "itl-p99"}, "semantics": {"const": "adjacent-output-token-gap-v1"}, "unit": {"const": "milliseconds"}, "direction": {"const": "at-most"}}},
+        {"properties": {"metric": {"const": "request-goodput"}, "semantics": {"const": "requests-meeting-declared-slos-v1"}, "unit": {"const": "ratio"}, "direction": {"const": "at-least"}}},
+        {"properties": {"metric": {"const": "fairness-index"}, "semantics": {"const": "weighted-jain-fairness-index-v1"}, "unit": {"const": "ratio"}, "direction": {"const": "at-least"}}},
+        {"properties": {"metric": {"const": "noisy-neighbor-impact"}, "semantics": {"const": "victim-ttft-relative-degradation-v1"}, "unit": {"const": "ratio"}, "direction": {"const": "at-most"}}},
+        {"properties": {"metric": {"const": "recovery-seconds"}, "semantics": {"const": "time-to-sustained-slo-recovery-v1"}, "unit": {"const": "seconds"}, "direction": {"const": "at-most"}}},
+        {"properties": {"metric": {"const": "cost-per-million-tokens"}, "semantics": {"const": "amortized-inference-cost-per-million-tokens-v1"}, "unit": {"const": "usd"}, "direction": {"const": "at-most"}}}
+      ]
+    },
+    "workload_point": {
+      "type": "object", "additionalProperties": false,
+      "required": ["concurrency", "prompt_tokens", "output_tokens", "tenant_count", "arrival_rate_per_second", "fault"],
+      "properties": {
+        "concurrency": {"type": "integer", "minimum": 1}, "prompt_tokens": {"type": "integer", "minimum": 1},
+        "output_tokens": {"type": "integer", "minimum": 1}, "tenant_count": {"type": "integer", "minimum": 1},
+        "arrival_rate_per_second": {"type": "number", "exclusiveMinimum": 0}, "fault": {"$ref": "#/$defs/fault"}
+      }
+    },
+    "uncertainty": {
+      "type": "object", "required": ["name", "semantics", "method"],
+      "properties": {"name": {"$ref": "#/$defs/name"}, "semantics": {"$ref": "#/$defs/name"}, "method": {"enum": ["bootstrap-standard-error", "sample-standard-error", "binomial"]}, "standard_error": {"type": "number", "minimum": 0}, "successes": {"type": "integer", "minimum": 0}, "trials": {"type": "integer", "minimum": 1}},
+      "oneOf": [
+        {"properties": {"method": {"enum": ["bootstrap-standard-error", "sample-standard-error"]}}, "required": ["standard_error"], "not": {"anyOf": [{"required": ["successes"]}, {"required": ["trials"]}]}},
+        {"properties": {"method": {"const": "binomial"}}, "required": ["successes", "trials"], "not": {"required": ["standard_error"]}}
+      ],
+      "additionalProperties": false
+    },
+    "evidence_node": {
+      "type": "object", "additionalProperties": false, "required": ["envelope", "workload", "uncertainties"],
+      "properties": {"envelope": {"$ref": "../../evidence/v1/envelope.schema.json"}, "workload": {"$ref": "#/$defs/workload_point"}, "uncertainties": {"type": "array", "maxItems": 4096, "items": {"$ref": "#/$defs/uncertainty"}}}
+    }
+  }
+}

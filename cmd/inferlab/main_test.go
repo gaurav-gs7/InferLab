@@ -27,6 +27,7 @@ func TestRun(t *testing.T) {
 		{name: "unknown adapter", args: []string{"adapter", "capabilities", "missing"}, wantCode: 1, wantStderr: "unknown adapter"},
 		{name: "change usage", args: []string{"change"}, wantCode: 2, wantStderr: "inferlab change validate"},
 		{name: "evidence usage", args: []string{"evidence"}, wantCode: 2, wantStderr: "inferlab evidence validate"},
+		{name: "gate usage", args: []string{"gate"}, wantCode: 2, wantStderr: "inferlab gate evaluate"},
 		{name: "runtime usage", args: []string{"runtime"}, wantCode: 2, wantStderr: "inferlab runtime validate"},
 		{name: "missing command", wantCode: 2, wantStderr: "Usage:"},
 		{name: "unknown command", args: []string{"nope"}, wantCode: 2, wantStderr: "unknown command"},
@@ -46,6 +47,34 @@ func TestRun(t *testing.T) {
 				t.Errorf("stderr %q does not contain %q", stderr.String(), tt.wantStderr)
 			}
 		})
+	}
+}
+
+func TestRunGateInconclusive(t *testing.T) {
+	t.Parallel()
+	example := filepath.Join("..", "..", "examples", "missing-evidence-gate.json")
+	var stdout, stderr bytes.Buffer
+	if got := run([]string{"gate", "evaluate", example}, &stdout, &stderr); got != 4 {
+		t.Fatalf("run() code = %d, want 4; stderr=%q", got, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), `"decision":"INCONCLUSIVE"`) || !strings.Contains(stdout.String(), `"code":"missing-coverage"`) {
+		t.Fatalf("stdout does not contain fail-closed result: %q", stdout.String())
+	}
+	resultPath := filepath.Join(t.TempDir(), "result.json")
+	if err := os.WriteFile(resultPath, stdout.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range []string{"validate", "digest"} {
+		stdout.Reset()
+		stderr.Reset()
+		if got := run([]string{"gate", "result", action, resultPath}, &stdout, &stderr); got != 0 {
+			t.Fatalf("gate result %s code = %d, want 0; stderr=%q", action, got, stderr.String())
+		}
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if got := run([]string{"gate", "evaluation", "validate", example}, &stdout, &stderr); got != 0 {
+		t.Fatalf("gate evaluation validate code = %d, want 0; stderr=%q", got, stderr.String())
 	}
 }
 

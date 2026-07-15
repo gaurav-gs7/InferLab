@@ -1,0 +1,80 @@
+{
+  "schema": "inferlab.gate-evaluation",
+  "schema_version": "1.0",
+  "name": "missing-observed-evidence",
+  "change_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "evaluated_at": "2026-07-15T09:00:00Z",
+  "max_evidence_age_seconds": 7200,
+  "confidence_level": 0.95,
+  "maximum_violation_probability": 0.05,
+  "target_runtime": {
+    "schema": "inferlab.runtime-signature",
+    "schema_version": "1.0",
+    "origin": "observed",
+    "model": {
+      "id": "qwen-qwen2.5-7b-instruct-awq",
+      "revision": "1111111111111111111111111111111111111111",
+      "tokenizer_id": "qwen-qwen2.5-7b-instruct-awq",
+      "tokenizer_revision": "2222222222222222222222222222222222222222",
+      "quantization": "awq",
+      "quantization_config_digest": "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    "engine": {
+      "name": "vllm",
+      "revision": "4444444444444444444444444444444444444444",
+      "container_image": "ghcr.io/vllm-project/vllm-openai@sha256:5555555555555555555555555555555555555555555555555555555555555555"
+    },
+    "platform": {
+      "cuda_version": "12.8",
+      "driver_version": "570.133.20",
+      "gpu_sku": "nvidia-l4",
+      "gpu_count": 1,
+      "topology": "single-gpu"
+    },
+    "scheduler": {
+      "name": "vllm-v1",
+      "config_digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+    },
+    "kernels": [
+      {
+        "name": "flash-attention",
+        "version": "2.7.4",
+        "config_digest": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+      }
+    ]
+  },
+  "regions": [
+    {
+      "name": "baseline",
+      "workload_digest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+      "minimum": {
+        "concurrency": 8,
+        "prompt_tokens": 128,
+        "output_tokens": 32,
+        "tenant_count": 2,
+        "arrival_rate_per_second": 5
+      },
+      "maximum": {
+        "concurrency": 32,
+        "prompt_tokens": 4096,
+        "output_tokens": 512,
+        "tenant_count": 8,
+        "arrival_rate_per_second": 30
+      },
+      "fault": {"type": "none"}
+    }
+  ],
+  "rules": [
+    {
+      "id": "ttft-p99",
+      "region": "baseline",
+      "metric": "ttft-p99",
+      "semantics": "request-arrival-to-first-token-v1",
+      "unit": "milliseconds",
+      "direction": "at-most",
+      "threshold": 1000,
+      "minimum_samples": 500
+    }
+  ],
+  "evidence": []
+}

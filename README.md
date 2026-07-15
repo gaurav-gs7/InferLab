@@ -6,7 +6,7 @@
 [![CodeQL](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml/badge.svg)](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-> **Status:** pre-alpha. Immutable inference-change intent, exact runtime signatures, bounded evidence envelopes, compatibility/invalidation logic, and bounded lossless adapter normalization are implemented. Uncertainty gates, fault campaigns, counterexample minimization, and signed safety cases are active milestones—not shipped claims.
+> **Status:** pre-alpha. Immutable inference-change intent, exact runtime/evidence validity, bounded lossless adapter normalization, fail-closed uncertainty gating, bounded fault evidence, and reverified counterexample minimization are implemented. Automated fault execution and signed safety cases are active milestones—not shipped claims.
 
 > **Naming:** `InferLab` is a working repository name. It conflicts with Doubleword's existing [Inference Lab](https://github.com/doublewordai/inference-lab) simulator and must be replaced before v0.1. No rename will be performed without an explicit maintainer decision.
 
@@ -103,6 +103,19 @@ go run ./cmd/inferlab adapter normalize guidellm-fixture-v1 examples/guidellm-ad
 
 See the [adapter protocol and normalization specification](docs/adapters.md), [protocol schemas](schemas/adapter/v1), and [public-safe conformance fixtures](pkg/adapter/testdata).
 
+## Uncertainty gate and reproducible counterexamples
+
+The release gate admits only fresh, complete, compatible observed evidence inside an exact workload/fault region. It enforces minimum samples, declared uncertainty, fixed metric semantics, conservative 95% bounds, and maximum violation probability across TTFT, TPOT/ITL, goodput, fairness, noisy-neighbour isolation, recovery, and cost. Any mandatory violation yields `BLOCK`; any evidence gap yields `INCONCLUSIVE`; only an entirely supported policy set yields `PASS`.
+
+Results contain stable findings, coverage, admission decisions, and an evidence graph linked to content digests. The deterministic, budget-bounded minimizer removes requests and reduces concurrency, token shapes, arrival timing, and the supported replica-loss or long-context fault dimensions, then re-verifies the final counterexample. Budget exhaustion and failed reproduction remain explicit.
+
+```bash
+go run ./cmd/inferlab gate evaluation validate examples/missing-evidence-gate.json
+go run ./cmd/inferlab gate evaluate examples/missing-evidence-gate.json # exits 4: INCONCLUSIVE
+```
+
+See the [gate and counterexample specification](docs/gate.md), [gate schemas](schemas/gate/v1), and deliberately incomplete [public example](examples/missing-evidence-gate.json).
+
 ## Implemented supporting foundations
 
 ### Scheduler SDK
@@ -173,7 +186,7 @@ make build
 ./bin/inferlab adapter normalize guidellm-fixture-v1 examples/guidellm-adapter-input.json
 ```
 
-The CLI validates and identifies change, runtime, evidence, and normalized-report documents, and normalizes pinned producer fixtures. It does not yet make a release decision; that command will land only with the uncertainty gate and its acceptance tests.
+The CLI validates and identifies change, runtime, evidence, normalized-report, gate-evaluation, and gate-result documents; normalizes pinned producer fixtures; and emits canonical gate decisions with stable exit codes. Signing and offline safety-case verification remain unimplemented.
 
 ## Engineering standards
 
@@ -204,6 +217,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the local merge gate and review expec
 - [Inference-change contract](docs/inference-change.md)
 - [Runtime identity and evidence contract](docs/evidence.md)
 - [Adapter protocol and lossless normalization](docs/adapters.md)
+- [Uncertainty gate and reproducible counterexamples](docs/gate.md)
 - [Trace format and privacy contract](docs/trace-format.md)
 - [Design principles](docs/design-principles.md)
 - [Security policy](SECURITY.md)

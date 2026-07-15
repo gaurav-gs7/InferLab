@@ -20,9 +20,14 @@ High-priority issues include:
 - cross-tenant metadata disclosure or fingerprint reversal;
 - production request interference from shadow mode;
 - unbounded resource consumption from malicious traces;
+- duplicate-field, deep-nesting, oversized-output, or process-lifecycle attacks from evidence documents and external adapters;
+- forged producer identity, artifact substitution, or classification changes that present predicted evidence as observed;
+- stale, incomplete, runtime-incompatible, under-sampled, or out-of-distribution evidence producing `PASS`;
+- decision/result tampering that breaks the canonical evaluation or evidence graph without detection;
 - path traversal or arbitrary file overwrite in report generation;
 - command/config injection in exporters or integrations;
 - authentication, authorization, or secret-handling failures;
 - distributed admission errors that can bypass configured limits.
+- counterexample minimization that reports a non-reproducing or budget-incomplete result as a verified minimum.
 
 General hardening suggestions without a concrete security impact can be filed as regular issues.

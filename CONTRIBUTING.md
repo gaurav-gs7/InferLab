@@ -20,7 +20,7 @@ make build
 
 `make check` formats source, runs static analysis, unit tests, and the race detector. Feature-specific changes may also require fuzz, integration, benchmark, or kind-based tests documented beside that feature.
 
-Trace parser and privacy changes must also run `make fuzz`. Override the default campaign length with `FUZZTIME=1m make fuzz`.
+Trace, change, evidence, adapter, gate, parser, or privacy changes must also run `make fuzz`. Override the default campaign length with `FUZZTIME=1m make fuzz`.
 
 ## Engineering expectations
 
@@ -33,6 +33,9 @@ Trace parser and privacy changes must also run `make fuzz`. Override the default
 - Keep scheduling contracts free of Kubernetes and serving-engine dependencies.
 - Treat all trace input as untrusted and resource-bound parsing work.
 - Add structured reason codes for new decision factors.
+- Bind every decision-relevant field into a canonical digest and evidence-graph dependency.
+- Prove that stale, partial, predicted, incompatible, under-sampled, and out-of-region evidence cannot produce `PASS` when changing gate behavior.
+- Re-verify minimized counterexamples and report budget exhaustion instead of claiming a global minimum.
 - Document observed, predicted, and derived benchmark values separately.
 - Update user docs and compatibility notes with behavior changes.
 

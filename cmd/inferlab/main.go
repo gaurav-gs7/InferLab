@@ -11,6 +11,7 @@ import (
 	"github.com/gaurav-gs7/InferLab/pkg/adapter"
 	"github.com/gaurav-gs7/InferLab/pkg/change"
 	"github.com/gaurav-gs7/InferLab/pkg/evidence"
+	"github.com/gaurav-gs7/InferLab/pkg/gate"
 )
 
 const usage = `InferLab builds pre-production safety evidence for LLM inference changes.
@@ -22,6 +23,7 @@ Commands:
   adapter    List adapters, inspect capabilities, or normalize evidence
   change     Validate or digest an inference-change document
   evidence   Validate or digest an evidence envelope
+  gate       Evaluate an evidence gate or inspect its documents
   runtime    Validate or digest a runtime signature
   policies   List built-in scheduling policies
   version    Print build version information
@@ -44,6 +46,20 @@ const changeUsage = `Usage:
 const evidenceUsage = `Usage:
   inferlab evidence validate <path>
   inferlab evidence digest <path>
+`
+
+const gateUsage = `Usage:
+  inferlab gate evaluate <evaluation-path>
+  inferlab gate evaluation validate <evaluation-path>
+  inferlab gate result validate <result-path>
+  inferlab gate result digest <result-path>
+
+Exit codes for gate evaluate:
+  0  PASS
+  3  BLOCK
+  4  INCONCLUSIVE
+  1  invalid input or execution failure
+  2  usage error
 `
 
 const runtimeUsage = `Usage:
@@ -74,6 +90,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return runAdapter(args[1:], stdout, stderr)
 	case "evidence":
 		return runEvidence(args[1:], stdout, stderr)
+	case "gate":
+		return runGate(args[1:], stdout, stderr)
 	case "runtime":
 		return runRuntime(args[1:], stdout, stderr)
 	case "policies":
@@ -83,6 +101,84 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "unknown command %q\n\n%s", args[0], usage)
 		return 2
 	}
+}
+
+func runGate(args []string, stdout, stderr io.Writer) int {
+	if len(args) == 2 && args[0] == "evaluate" {
+		file, err := os.Open(args[1])
+		if err != nil {
+			fmt.Fprintf(stderr, "open gate evaluation: %v\n", err)
+			return 1
+		}
+		defer file.Close()
+		evaluation, err := gate.DecodeEvaluation(file)
+		if err != nil {
+			fmt.Fprintf(stderr, "invalid gate evaluation: %v\n", err)
+			return 1
+		}
+		result, err := gate.Evaluate(evaluation)
+		if err != nil {
+			fmt.Fprintf(stderr, "evaluate gate: %v\n", err)
+			return 1
+		}
+		encoded, err := gate.CanonicalResultJSON(result)
+		if err != nil {
+			fmt.Fprintf(stderr, "encode gate result: %v\n", err)
+			return 1
+		}
+		fmt.Fprintln(stdout, string(encoded))
+		switch result.Decision {
+		case gate.DecisionPass:
+			return 0
+		case gate.DecisionBlock:
+			return 3
+		case gate.DecisionInconclusive:
+			return 4
+		default:
+			return 1
+		}
+	}
+	if len(args) == 3 && args[0] == "evaluation" && args[1] == "validate" {
+		file, err := os.Open(args[2])
+		if err != nil {
+			fmt.Fprintf(stderr, "open gate evaluation: %v\n", err)
+			return 1
+		}
+		defer file.Close()
+		evaluation, err := gate.DecodeEvaluation(file)
+		if err != nil {
+			fmt.Fprintf(stderr, "invalid gate evaluation: %v\n", err)
+			return 1
+		}
+		fmt.Fprintf(stdout, "valid %s\n", evaluation.Name)
+		return 0
+	}
+	if len(args) == 3 && args[0] == "result" && (args[1] == "validate" || args[1] == "digest") {
+		file, err := os.Open(args[2])
+		if err != nil {
+			fmt.Fprintf(stderr, "open gate result: %v\n", err)
+			return 1
+		}
+		defer file.Close()
+		result, err := gate.DecodeResult(file)
+		if err != nil {
+			fmt.Fprintf(stderr, "invalid gate result: %v\n", err)
+			return 1
+		}
+		digest, err := gate.ResultDigest(result)
+		if err != nil {
+			fmt.Fprintf(stderr, "digest gate result: %v\n", err)
+			return 1
+		}
+		if args[1] == "digest" {
+			fmt.Fprintln(stdout, digest)
+		} else {
+			fmt.Fprintf(stdout, "valid %s %s %s\n", result.Evaluation, digest, result.Decision)
+		}
+		return 0
+	}
+	fmt.Fprint(stderr, gateUsage)
+	return 2
 }
 
 func runAdapter(args []string, stdout, stderr io.Writer) int {

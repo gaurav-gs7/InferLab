@@ -1,5 +1,6 @@
 # Build output
 /bin/
+/inferlab
 /dist/
 /coverage/
 /.gocache/

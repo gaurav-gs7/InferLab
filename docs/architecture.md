@@ -103,7 +103,7 @@ Partial output remains partial. Adapter crashes, missing samples, non-finite val
 
 Third-party tools remain out of process behind a bounded, versioned protocol. An adapter declares supported producer versions, report schemas, capabilities, metric mappings, and known losses. It supports cancellation and deterministic normalization; it does not reinterpret unknown fields optimistically.
 
-GuideLLM and inference-perf are the first intended observed-evidence adapters. Simulator adapters may target Vidur, LLMServingSim, Doubleword Inference Lab, InferSim, or another system. Support is claimed only after a pinned public fixture passes the same conformance suite.
+`pkg/adapter` implements this protocol, lossless mapping records, process cancellation/output bounds, and pinned GuideLLM and inference-perf conformance projections. Those projections are deliberately narrower than full native upstream report support. Simulator adapters may target Vidur, LLMServingSim, Doubleword Inference Lab, InferSim, or another system only after a pinned public fixture passes the same conformance suite.
 
 ### Simulator role
 
@@ -139,13 +139,15 @@ Coverage is measured across required concurrency, arrival rate, prompt/output le
 
 Evaluators use declared estimators, confidence bounds, and minimum sample rules. Measurement uncertainty, sampling uncertainty, model uncertainty, and adapter-mapping uncertainty remain distinct. Optional stopping, incompatible pooling, or missing tail samples are evidence limitations, not successful results.
 
+`pkg/gate` implements the v1 observed-evidence admission path, workload-region coverage, 95% continuous/binomial confidence bounds, violation-risk comparison, fixed metric contracts, decision precedence, and the evidence-to-decision graph. Its result binds the canonical evaluation digest, so changing workload coordinates or uncertainty declarations changes the decision lineage.
+
 ## Faults and counterexamples
 
 Fault contracts describe inference-infrastructure behavior rather than generic pod deletion or model-weight corruption. The vocabulary includes worker loss, Spot interruption, model-load failure, CUDA OOM, straggler GPU, KV-cache eviction storm, router partition, cancellation storm, telemetry loss, and stale performance profiles.
 
-Only faults with implemented executors or conforming external evidence adapters are supported. The initial executable subset is replica loss and long-context pressure. Each fault binds scope, trigger, seed, duration, recovery predicate, and blast radius. A campaign cannot target undeclared resources or exceed declared attempt/time/cost bounds.
+Only faults with implemented executors or conforming external evidence adapters are supported. The current gate admits bounded replica-loss and long-context-pressure evidence; it does not execute either fault. Each eventual executor must bind scope, trigger, seed, duration, recovery predicate, and blast radius. A campaign cannot target undeclared resources or exceed declared attempt/time/cost bounds.
 
-A counterexample is the smallest known reproducible input region where a mandatory policy fails. Minimization may operate over arrivals, concurrency, tenant mix, token distributions, and bounded fault parameters. It records every search bound and never claims global minimality. Blocking counterexamples are re-run to detect flaky predicates and quantify reproduction probability.
+A counterexample is the smallest known reproducible input region where a mandatory policy fails. `gate.Minimize` deterministically reduces request subsets, arrivals, concurrency, token shapes, and bounded fault parameters behind a caller-provided oracle. It records each accepted digest transition, reports budget-limited search honestly, never claims global minimality, and refuses a final candidate that does not pass the declared re-verification runs.
 
 ## Policy decisions
 
