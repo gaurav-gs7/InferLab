@@ -81,7 +81,7 @@ The phrase “all possible edge cases” cannot be proven for a non-trivial prog
 | Clean-directory acceptance | Copied source without Git/build/cache artifacts; ran `make check`, `make build`, and `make demo-safety-case` with fresh caches | Pass |
 | JSON Schemas | Published-schema tests plus `jq empty` on changed schemas | Pass |
 | Basic committed-secret pattern scan | Private-key header and AWS access-key patterns over tracked files | No match; not a replacement for platform secret scanning |
-| Remote security workflows at baseline | CI, CodeQL, safety-gate proof, govulncheck job | Last baseline runs passed; current hardening revision requires post-push confirmation |
+| Remote security workflows | CI (including govulncheck), CodeQL, and safety-gate proof for hardening commit `b78781e` | Pass: [CI](https://github.com/gaurav-gs7/InferLab/actions/runs/29500161916), [CodeQL](https://github.com/gaurav-gs7/InferLab/actions/runs/29500161930), [safety proof](https://github.com/gaurav-gs7/InferLab/actions/runs/29500161960) |
 
 The reproducible command is:
 
