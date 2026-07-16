@@ -81,6 +81,51 @@ func TestDecoderForwardCompatibility(t *testing.T) {
 	}
 }
 
+func TestDecoderRejectsUnknownCurrentVersionField(t *testing.T) {
+	t.Parallel()
+	encoded, err := MarshalCanonical(validRecord())
+	if err != nil {
+		t.Fatal(err)
+	}
+	unknown := strings.TrimSuffix(string(encoded), "}") + `,"unexpected":true}`
+	if _, err := NewDecoder(strings.NewReader(unknown), Limits{}).Decode(); !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("Decode() current-version extension error = %v, want %v", err, ErrInvalidRecord)
+	}
+}
+
+func TestCodecEnforcesCaptureOrder(t *testing.T) {
+	t.Parallel()
+	first := validRecord()
+	second := validRecord()
+	second.Sequence = 2
+	second.RequestID = "req-0002"
+	second.ArrivalOffsetNS = first.ArrivalOffsetNS - 1
+
+	var output bytes.Buffer
+	encoder := NewEncoder(&output, Limits{})
+	if err := encoder.Encode(first); err != nil {
+		t.Fatal(err)
+	}
+	if err := encoder.Encode(second); !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("Encode() decreasing arrival error = %v, want %v", err, ErrInvalidRecord)
+	}
+
+	second.ArrivalOffsetNS = first.ArrivalOffsetNS
+	second.Sequence = 3
+	encoded, err := MarshalCanonical(second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream := append(append(append([]byte(nil), output.Bytes()...), encoded...), '\n')
+	decoder := NewDecoder(bytes.NewReader(stream), Limits{})
+	if _, err := decoder.Decode(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := decoder.Decode(); !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("Decode() sequence gap error = %v, want %v", err, ErrInvalidRecord)
+	}
+}
+
 func TestDecoderRejectsUnsafeJSON(t *testing.T) {
 	t.Parallel()
 

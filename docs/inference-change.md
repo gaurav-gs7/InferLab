@@ -2,7 +2,7 @@
 
 An inference-change document is the immutable experiment intent consumed by InferLab. It states what is changing, which workload and policies matter, which faults may be explored, and the maximum money and accelerator time a separately authorized experiment may consume. It is neither a deployment manifest nor authority to perform an external action.
 
-The v1 schema identifier is `inferlab.change` with schema version `1.0`. Documents are strict JSON: unknown fields, trailing values, oversized input, mutable aliases, and unsupported features are rejected rather than ignored.
+The v1 schema identifier is `inferlab.change` with schema version `1.0`. Documents are strict JSON: duplicate or unknown fields, deep nesting, trailing values, oversized input, mutable aliases, and unsupported features are rejected rather than ignored.
 
 ## Reproducibility boundary
 
@@ -35,7 +35,7 @@ Unsupported input produces a typed error. Adding a new engine or accelerator req
 
 ## Safety constraints
 
-Container tags alone are rejected because tags can move. Common mutable model revisions such as `main`, `master`, `latest`, and `HEAD` are rejected. Trace URIs may not contain credentials, query strings, or fragments. Fault points must be positive, strictly increasing, and bounded. Floating-point policy and budget values must be finite.
+Container tags alone are rejected because tags can move. Common mutable model revisions such as `main`, `master`, `latest`, and `HEAD` are rejected. Trace URIs may not contain credentials, query strings, or fragments. Fault points must be positive, strictly increasing, and bounded. Floating-point policy and budget values must be finite. `maximum_violation_probability` must be in `(0, 0.5]`, matching the gate contract; values above 0.5 would permit a policy that is more likely to be violated than satisfied.
 
 The budget fields are hard execution ceilings. A runner that has been separately authorized must stop before either ceiling is exceeded and record actual usage. A valid document never authorizes cloud, quota, support, billing, cluster, deployment, or other external-account changes.
 

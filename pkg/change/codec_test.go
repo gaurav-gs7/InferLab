@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/gaurav-gs7/InferLab/internal/strictjson"
 )
 
 func TestDecodeRoundTrip(t *testing.T) {
@@ -31,7 +33,9 @@ func TestDecodeRejectsUntrustedInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	unknown := append(bytes.TrimSuffix(encoded, []byte("}")), []byte(`,"unexpected":true}`)...)
+	base := bytes.TrimSuffix(encoded, []byte("}"))
+	unknown := append(bytes.Clone(base), []byte(`,"unexpected":true}`)...)
+	duplicate := append(bytes.Clone(base), []byte(`,"name":"duplicate"}`)...)
 
 	tests := []struct {
 		name    string
@@ -39,6 +43,7 @@ func TestDecodeRejectsUntrustedInput(t *testing.T) {
 		wantErr error
 	}{
 		{name: "unknown field", input: unknown, wantErr: ErrInvalidDocument},
+		{name: "duplicate field", input: duplicate, wantErr: strictjson.ErrDuplicateField},
 		{name: "trailing value", input: append(encoded, []byte("\n{}")...), wantErr: ErrInvalidDocument},
 		{name: "too large", input: bytes.Repeat([]byte("x"), MaxDocumentBytes+1), wantErr: ErrDocumentTooLarge},
 		{name: "empty", input: nil, wantErr: ErrInvalidDocument},

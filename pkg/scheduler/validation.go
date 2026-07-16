@@ -102,6 +102,9 @@ func ValidateSnapshot(snapshot ClusterSnapshot) error {
 		if endpoint.ObservedAt.IsZero() {
 			return fmt.Errorf("%w: endpoint %q has no observation time", ErrInvalidSnapshot, endpoint.ID)
 		}
+		if endpoint.ObservedAt.After(snapshot.CapturedAt) {
+			return fmt.Errorf("%w: endpoint %q observation is later than the snapshot capture", ErrInvalidSnapshot, endpoint.ID)
+		}
 	}
 	return nil
 }

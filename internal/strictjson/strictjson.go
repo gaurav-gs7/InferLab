@@ -14,6 +14,7 @@ const MaxDepth = 64
 
 var (
 	ErrDuplicateField = errors.New("duplicate JSON field")
+	ErrMultipleValues = errors.New("multiple JSON values")
 	ErrNestingLimit   = errors.New("JSON nesting limit exceeded")
 	ErrTooLarge       = errors.New("JSON document exceeds size limit")
 )
@@ -41,7 +42,7 @@ func ReadOne(reader io.Reader, maxBytes int64) ([]byte, error) {
 	}
 	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
 		if err == nil {
-			return nil, errors.New("multiple JSON values")
+			return nil, ErrMultipleValues
 		}
 		return nil, fmt.Errorf("trailing JSON: %w", err)
 	}

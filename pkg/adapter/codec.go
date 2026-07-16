@@ -3,6 +3,8 @@ package adapter
 import (
 	"fmt"
 	"io"
+	"unicode"
+	"unicode/utf8"
 )
 
 func DecodeInput(reader io.Reader) (Input, error) {
@@ -93,7 +95,7 @@ func ValidateResponse(response Response) error {
 	}
 	if response.Failure != nil {
 		count++
-		if !namePattern.MatchString(response.Failure.Code) || response.Failure.Message == "" || len(response.Failure.Message) > 1024 {
+		if !namePattern.MatchString(response.Failure.Code) || !validFailureMessage(response.Failure.Message) {
 			return fmt.Errorf("%w: invalid failure", ErrProtocol)
 		}
 	}
@@ -101,4 +103,16 @@ func ValidateResponse(response Response) error {
 		return fmt.Errorf("%w: response requires exactly one payload", ErrProtocol)
 	}
 	return nil
+}
+
+func validFailureMessage(message string) bool {
+	if message == "" || len(message) > 1024 || !utf8.ValidString(message) {
+		return false
+	}
+	for _, character := range message {
+		if unicode.IsControl(character) {
+			return false
+		}
+	}
+	return true
 }

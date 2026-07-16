@@ -103,7 +103,7 @@
         "tpot_p99_milliseconds": {"type": "integer", "minimum": 1},
         "minimum_fairness_index": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
         "maximum_cost_per_million_tokens_usd": {"type": "number", "exclusiveMinimum": 0},
-        "maximum_violation_probability": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}
+        "maximum_violation_probability": {"type": "number", "exclusiveMinimum": 0, "maximum": 0.5}
       }
     },
     "fault": {

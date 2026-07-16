@@ -34,6 +34,7 @@ func TestValidate(t *testing.T) {
 		{name: "duplicate tenant", mutate: func(d *Document) { d.Workload.Tenants[1].Name = d.Workload.Tenants[0].Name }, wantErr: ErrInvalidDocument, want: "repeats"},
 		{name: "invalid fairness", mutate: func(d *Document) { d.Policies.MinimumFairnessIndex = 1.1 }, wantErr: ErrInvalidDocument, want: "fairness"},
 		{name: "invalid cost", mutate: func(d *Document) { d.Policies.MaximumCostPerMillionTokensUSD = math.NaN() }, wantErr: ErrInvalidDocument, want: "cost"},
+		{name: "unsafe violation probability", mutate: func(d *Document) { d.Policies.MaximumViolationProbability = 0.500001 }, wantErr: ErrInvalidDocument, want: "(0, 0.5]"},
 		{name: "duplicate fault", mutate: func(d *Document) { d.Faults[1] = d.Faults[0] }, wantErr: ErrInvalidDocument, want: "repeats"},
 		{name: "unsupported fault", mutate: func(d *Document) { d.Faults[0].Type = "cuda-oom" }, wantErr: ErrUnsupportedFeature, want: "cuda-oom"},
 		{name: "unordered durations", mutate: func(d *Document) { d.Faults[0].DurationSeconds = []uint32{30, 15} }, wantErr: ErrInvalidDocument, want: "strictly increasing"},

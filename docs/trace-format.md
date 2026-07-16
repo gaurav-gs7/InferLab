@@ -67,13 +67,13 @@ An allowlist limits accidental collection; operators must still verify that appr
 
 The encoder emits fields in the Go `Record` declaration order, sorts metadata map keys lexicographically through Go's JSON encoder, uses compact JSON, and writes exactly one LF after each record. Identical valid records therefore produce identical bytes with the same supported Go toolchain.
 
-Readers accept LF, CRLF, and a final line without a newline. Empty lines, invalid UTF-8, duplicate object keys, multiple JSON values on one line, non-finite metrics, malformed digests, and sensitive content-field names are rejected.
+Readers accept LF, CRLF, and a final line without a newline. Empty lines, invalid UTF-8, duplicate object keys, multiple JSON values on one line, non-finite metrics, malformed digests, and sensitive content-field names are rejected. A stream must start at sequence `1`, continue without gaps or duplicates, and use non-decreasing arrival offsets.
 
 ## Version compatibility
 
 - Writers emit exactly `1.0` and refuse to label output as a version they do not implement.
 - Readers require `schema` to equal `inferlab.trace` and reject unsupported major versions.
-- Readers accept later minor versions in major version 1 and ignore unknown non-sensitive fields after fully validating JSON shape and resource limits.
+- Readers reject unknown fields on the current `1.0` contract. They accept later minor versions in major version 1 and ignore unknown non-sensitive fields after fully validating JSON shape and resource limits.
 - The v1.0 JSON Schema is intentionally strict (`additionalProperties: false`) for validating writer output. The Go reader is deliberately more tolerant so it can inspect later minor versions.
 - A record decoded from a later minor version cannot be re-emitted by the v1.0 canonical writer. This prevents silently stripping extensions while preserving the newer version label.
 - Duplicate keys are invalid rather than using last-value-wins behavior.

@@ -37,7 +37,7 @@ An attacker may replace a raw benchmark report, evaluation, gate result, counter
 
 ### Filesystem attacks
 
-An artifact descriptor may attempt path traversal, absolute paths, symlink escape, non-regular files, aliasing, or oversized closure. Canonical relative paths, containment checks, `Lstat`/opened-file identity checks, regular-file enforcement, per-file/total bounds, and duplicate rejection mitigate these attacks. A hostile process with concurrent write access to the verifier's directory or kernel remains outside the boundary; verify immutable copied bundles in a trusted environment.
+An artifact descriptor may attempt path traversal, absolute paths, symlink escape, non-regular files, aliasing, or oversized closure. Canonical relative paths, an OS-rooted filesystem handle, containment checks, `Lstat`/opened-file identity checks, regular-file enforcement, per-file/total bounds, and duplicate rejection mitigate these attacks. A hostile process with concurrent write access to the verifier's directory or kernel remains outside the boundary; verify immutable copied bundles in a trusted environment.
 
 ### Adapter process attacks
 

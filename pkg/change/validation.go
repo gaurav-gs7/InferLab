@@ -163,8 +163,8 @@ func validatePolicies(policies Policies) error {
 	if !positiveFinite(policies.MaximumCostPerMillionTokensUSD) {
 		return fmt.Errorf("%w: policies.maximum_cost_per_million_tokens_usd must be finite and greater than zero", ErrInvalidDocument)
 	}
-	if !unitInterval(policies.MaximumViolationProbability) || policies.MaximumViolationProbability == 0 {
-		return fmt.Errorf("%w: policies.maximum_violation_probability must be in the range (0, 1]", ErrInvalidDocument)
+	if !unitInterval(policies.MaximumViolationProbability) || policies.MaximumViolationProbability == 0 || policies.MaximumViolationProbability > 0.5 {
+		return fmt.Errorf("%w: policies.maximum_violation_probability must be in the range (0, 0.5]", ErrInvalidDocument)
 	}
 	return nil
 }

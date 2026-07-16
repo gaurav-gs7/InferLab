@@ -1,6 +1,6 @@
 # Runtime identity and evidence contract
 
-Day 4 establishes the boundary between evidence production and release evaluation. The contracts identify what actually ran, preserve where every value came from, and prevent stale or incomplete evidence from silently matching a new configuration.
+The evidence boundary identifies what actually ran, preserves where every value came from, and prevents stale or incomplete evidence from silently matching a new configuration.
 
 ## Runtime signature
 
@@ -30,7 +30,7 @@ Container tags are rejected; an OCI-style image must contain a SHA-256 digest. M
 - `incompatible`: at least one known difference is not permitted; or
 - `unknown`: no unignored mismatch exists, but at least one side lacks material identity.
 
-An unignored known mismatch takes precedence over unknown identity because it is already sufficient to reject reuse. Unknown identity takes precedence over compatibility exceptions. Policies must list known dimensions in canonical sorted order; duplicate or invented dimensions are rejected.
+An unignored known mismatch takes precedence over unknown identity because it is already sufficient to reject reuse. Unknown identity takes precedence over compatibility exceptions. Policies must list dimensions in canonical sorted order; duplicate or invented dimensions are rejected. V1 permits only `platform.driver_version` as a policy-waivable dimension. Model, tokenizer, engine, container, CUDA, accelerator, topology, scheduler, and kernel differences always invalidate reuse. A driver waiver still requires external validation and review; its name and version are audit identity, not proof that two drivers behave identically.
 
 Origin is intentionally not a compatibility dimension: declared baseline identity is expected to be compared with observed run identity. It remains part of the canonical signature digest, so the two documents cannot be substituted for one another.
 
@@ -65,7 +65,7 @@ Example explanation:
 runtime -> observation -> claim: container digest changed
 ```
 
-Signing and persistent safety-case graphs arrive later. Day 4 provides deterministic invalidation semantics without claiming that an in-memory graph is already a complete safety case.
+The in-memory graph supports deterministic invalidation. Signed release closure is handled separately by the [safety-case contract](safety-case.md).
 
 ## Limits and trust boundary
 

@@ -23,6 +23,13 @@ type CompatibilityPolicy struct {
 	IgnoredDimensions []Dimension `json:"ignored_dimensions"`
 }
 
+// waivableDimensions is deliberately narrow. Driver patch equivalence can be
+// established by an explicit, versioned policy; model, engine, container,
+// accelerator, scheduler, and kernel identity are never generic waivers.
+var waivableDimensions = map[Dimension]struct{}{
+	DimensionDriverVersion: {},
+}
+
 type CompatibilityResult struct {
 	Status             CompatibilityStatus `json:"status"`
 	PolicyName         string              `json:"policy_name,omitempty"`
@@ -109,6 +116,9 @@ func validateCompatibilityPolicy(policy *CompatibilityPolicy) error {
 	for _, dimension := range policy.IgnoredDimensions {
 		if _, exists := known[dimension]; !exists {
 			return fmt.Errorf("%w: unknown dimension %q", ErrInvalidPolicy, dimension)
+		}
+		if _, allowed := waivableDimensions[dimension]; !allowed {
+			return fmt.Errorf("%w: dimension %q is not safely waivable in v1", ErrInvalidPolicy, dimension)
 		}
 		if _, exists := seen[dimension]; exists {
 			return fmt.Errorf("%w: duplicate dimension %q", ErrInvalidPolicy, dimension)

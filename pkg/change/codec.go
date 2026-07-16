@@ -8,20 +8,25 @@ import (
 	"errors"
 	"fmt"
 	"io"
+
+	"github.com/gaurav-gs7/InferLab/internal/strictjson"
 )
 
-// Decode reads one bounded JSON document, rejects unknown fields and trailing
-// values, and validates the v0.1 support envelope.
+// Decode reads one bounded JSON document, rejects duplicate and unknown fields,
+// excessive nesting, and trailing values, then validates the v0.1 support envelope.
 func Decode(reader io.Reader) (Document, error) {
 	if reader == nil {
 		return Document{}, fmt.Errorf("%w: reader is nil", ErrInvalidDocument)
 	}
-	data, err := io.ReadAll(io.LimitReader(reader, MaxDocumentBytes+1))
-	if err != nil {
-		return Document{}, fmt.Errorf("read inference change: %w", err)
-	}
-	if len(data) > MaxDocumentBytes {
+	data, err := strictjson.ReadOne(reader, MaxDocumentBytes)
+	if errors.Is(err, strictjson.ErrTooLarge) {
 		return Document{}, ErrDocumentTooLarge
+	}
+	if errors.Is(err, strictjson.ErrMultipleValues) {
+		return Document{}, fmt.Errorf("%w: trailing JSON value: %w", ErrInvalidDocument, err)
+	}
+	if err != nil {
+		return Document{}, fmt.Errorf("%w: decode JSON: %w", ErrInvalidDocument, err)
 	}
 
 	decoder := json.NewDecoder(bytes.NewReader(data))
@@ -29,13 +34,6 @@ func Decode(reader io.Reader) (Document, error) {
 	var document Document
 	if err := decoder.Decode(&document); err != nil {
 		return Document{}, fmt.Errorf("%w: decode JSON: %v", ErrInvalidDocument, err)
-	}
-	var trailing any
-	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
-		if err == nil {
-			return Document{}, fmt.Errorf("%w: trailing JSON value", ErrInvalidDocument)
-		}
-		return Document{}, fmt.Errorf("%w: trailing content: %v", ErrInvalidDocument, err)
 	}
 	if err := Validate(document); err != nil {
 		return Document{}, err

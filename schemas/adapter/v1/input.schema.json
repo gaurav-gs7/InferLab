@@ -17,6 +17,12 @@
     "finished_at": {"type": "string", "format": "date-time"},
     "report": {}
   },
+  "allOf": [
+    {
+      "if": {"properties": {"completeness": {"const": "complete"}}, "required": ["completeness"]},
+      "then": {"required": ["finished_at"]}
+    }
+  ],
   "$defs": {
     "name": {"type": "string", "pattern": "^[a-z0-9](?:[a-z0-9._-]{0,126}[a-z0-9])?$"},
     "identifier": {"type": "string", "minLength": 1, "maxLength": 256},

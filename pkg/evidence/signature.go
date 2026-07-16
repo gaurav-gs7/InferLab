@@ -23,7 +23,7 @@ var (
 	digestPattern   = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 	imagePattern    = regexp.MustCompile(`^[^[:space:]@]+@sha256:[0-9a-f]{64}$`)
 	namePattern     = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9._-]{0,126}[a-z0-9])?$`)
-	mutableAliases  = map[string]struct{}{"dev": {}, "head": {}, "latest": {}, "main": {}, "master": {}, "trunk": {}, "unknown": {}}
+	mutableAliases  = map[string]struct{}{"canary": {}, "dev": {}, "edge": {}, "head": {}, "latest": {}, "main": {}, "master": {}, "nightly": {}, "snapshot": {}, "trunk": {}, "unknown": {}, "unstable": {}}
 )
 
 // Dimension names one material runtime identity field.
@@ -295,6 +295,10 @@ func isMutableAlias(value string) bool {
 	if value == "" {
 		return false
 	}
-	_, exists := mutableAliases[strings.ToLower(value)]
-	return exists
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	if _, exists := mutableAliases[normalized]; exists {
+		return true
+	}
+	return strings.ContainsAny(normalized, "*^~<>=") || strings.HasSuffix(normalized, ".x") ||
+		strings.HasSuffix(normalized, "-snapshot") || strings.HasSuffix(normalized, ".snapshot")
 }

@@ -5,7 +5,10 @@ GOFLAGS ?=
 BIN_DIR ?= bin
 FUZZTIME ?= 10s
 
-.PHONY: build check clean demo-safety-case fmt fuzz help test test-race vet
+.PHONY: audit build check clean demo-safety-case fmt fuzz help test test-race vet
+
+audit: ## Run the extended release-readiness verification matrix.
+	FUZZTIME=$(FUZZTIME) bash scripts/verify-release.sh
 
 help: ## Show available targets.
 	@awk 'BEGIN {FS = ":.*## "; printf "InferLab development targets:\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)

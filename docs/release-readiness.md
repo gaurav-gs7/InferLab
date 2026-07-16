@@ -2,6 +2,8 @@
 
 Audit date: 2026-07-16. Current disposition: **pre-alpha; do not tag v0.1 yet**.
 
+The comprehensive component, test, edge-case, AWS, GitHub, and product-value assessment is in the [production-readiness report](production-readiness-report.md).
+
 ## Completed engineering proof
 
 - Strict versioned change, runtime, evidence, adapter, gate, counterexample, and safety-case contracts.
@@ -18,7 +20,8 @@ Audit date: 2026-07-16. Current disposition: **pre-alpha; do not tag v0.1 yet**.
 3. **No public PASS yet:** a PASS example must remain absent until all mandatory policy regions have adequate observed evidence. Adding a fabricated PASS would be a release blocker, not polish.
 4. **Signing trust policy:** define authorized release keys, protection, rotation/revocation, and branch/tag protection. Development key generation is not an organizational approval system.
 5. **Supply-chain release policy:** pin third-party Actions to reviewed immutable commit SHAs and add release provenance/attestation only when the final repository identity and tag policy exist.
-6. **Clean-room acceptance:** reproduce `make check`, a bounded fuzz run, `make demo-safety-case`, vulnerability scanning, CodeQL, and both GitHub checks from a fresh clone after the rename migration.
+6. **Clean-room acceptance:** reproduce `make audit`, vulnerability scanning, CodeQL, and all required GitHub checks from a fresh clone after the rename migration.
+7. **Repository enforcement:** protect `main`, require the CI/CodeQL/safety proof, restrict Actions to reviewed pinned sources, and enable Dependabot security updates. The 2026-07-16 inspection found no protection or ruleset.
 
 ## Naming migration checklist
 

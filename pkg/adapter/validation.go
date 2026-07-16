@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
+	"unicode/utf8"
 
 	"github.com/gaurav-gs7/InferLab/internal/strictjson"
 	"github.com/gaurav-gs7/InferLab/pkg/evidence"
@@ -23,6 +25,8 @@ var (
 	digestPattern   = regexp.MustCompile(`^sha256:[0-9a-f]{64}$`)
 )
 
+const maxCapabilityMetrics = 4096
+
 func ValidateCapabilities(capabilities Capabilities) error {
 	if capabilities.Schema != ProtocolSchema || capabilities.SchemaVersion != CurrentVersion {
 		return fmt.Errorf("%w: unsupported schema or version", ErrInvalidCapabilities)
@@ -33,8 +37,8 @@ func ValidateCapabilities(capabilities Capabilities) error {
 	if err := validateProducer(capabilities.Producer); err != nil {
 		return fmt.Errorf("%w: %w", ErrInvalidCapabilities, err)
 	}
-	if len(capabilities.Classifications) == 0 || len(capabilities.Metrics) == 0 {
-		return fmt.Errorf("%w: classifications and metrics must not be empty", ErrInvalidCapabilities)
+	if len(capabilities.Classifications) == 0 || len(capabilities.Metrics) == 0 || len(capabilities.Metrics) > maxCapabilityMetrics {
+		return fmt.Errorf("%w: classifications must not be empty and metrics must contain 1..%d entries", ErrInvalidCapabilities, maxCapabilityMetrics)
 	}
 	seenClasses := make(map[evidence.Classification]struct{}, len(capabilities.Classifications))
 	for _, classification := range capabilities.Classifications {
@@ -53,7 +57,7 @@ func ValidateCapabilities(capabilities Capabilities) error {
 			!namePattern.MatchString(metric.NormalizedName) || !namePattern.MatchString(metric.Semantics) {
 			return fmt.Errorf("%w: metrics[%d] contains an invalid name", ErrInvalidCapabilities, i)
 		}
-		if metric.SourceUnit == "" || metric.NormalizedUnit == "" {
+		if !validIdentifier(metric.SourceUnit) || !validIdentifier(metric.NormalizedUnit) {
 			return fmt.Errorf("%w: metrics[%d] requires explicit units", ErrInvalidCapabilities, i)
 		}
 		sourceKey := metric.SourceName + "\x00" + metric.SourceDefinition + "\x00" + metric.SourceUnit
@@ -91,6 +95,26 @@ func ValidateInput(input Input) error {
 	}
 	if input.Classification == evidence.ClassPredicted && input.Runtime.Origin != evidence.OriginDeclared {
 		return fmt.Errorf("%w: predicted input requires a declared runtime", ErrClassification)
+	}
+	started, err := time.Parse(time.RFC3339Nano, input.StartedAt)
+	if err != nil {
+		return fmt.Errorf("%w: started_at must be RFC3339", ErrInvalidInput)
+	}
+	if input.FinishedAt == "" {
+		if input.Completeness == evidence.CompletenessComplete {
+			return fmt.Errorf("%w: complete input requires finished_at", ErrInvalidInput)
+		}
+	} else {
+		finished, err := time.Parse(time.RFC3339Nano, input.FinishedAt)
+		if err != nil || finished.Before(started) {
+			return fmt.Errorf("%w: finished_at must be RFC3339 and not precede started_at", ErrInvalidInput)
+		}
+	}
+	if input.Completeness == evidence.CompletenessComplete {
+		unknown, err := evidence.UnknownDimensions(input.Runtime)
+		if err != nil || len(unknown) != 0 {
+			return fmt.Errorf("%w: complete input requires a complete runtime signature", ErrInvalidInput)
+		}
 	}
 	if !digestPattern.MatchString(input.WorkloadDigest) || input.Attempt == 0 {
 		return fmt.Errorf("%w: workload digest or attempt is invalid", ErrInvalidInput)
@@ -173,16 +197,15 @@ func validateProducer(producer ProducerIdentity) error {
 		return errors.New("producer requires a valid tool, pinned version, and report schema")
 	}
 	for _, value := range []string{producer.ToolVersion, producer.ReportSchema} {
-		switch strings.ToLower(value) {
-		case "dev", "head", "latest", "main", "master", "trunk", "unknown":
-			return errors.New("producer identity contains a mutable alias")
+		if mutableVersion(value) {
+			return errors.New("producer identity contains a mutable alias or version range")
 		}
 	}
 	return nil
 }
 
 func validIdentifier(value string) bool {
-	if value == "" || len(value) > 256 {
+	if value == "" || len(value) > 256 || !utf8.ValidString(value) {
 		return false
 	}
 	for _, character := range value {
@@ -191,6 +214,16 @@ func validIdentifier(value string) bool {
 		}
 	}
 	return true
+}
+
+func mutableVersion(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	switch normalized {
+	case "canary", "dev", "edge", "head", "latest", "main", "master", "nightly", "snapshot", "trunk", "unknown", "unstable":
+		return true
+	}
+	return strings.ContainsAny(normalized, "*^~<>=") || strings.HasSuffix(normalized, ".x") ||
+		strings.HasSuffix(normalized, "-snapshot") || strings.HasSuffix(normalized, ".snapshot")
 }
 
 func inputDigest(input []byte) string {

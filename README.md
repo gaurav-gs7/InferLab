@@ -81,7 +81,7 @@ See the [contract specification](docs/inference-change.md), [published JSON Sche
 
 Evidence is reusable only when its material runtime identity is known and compatible. The v1 signature covers model and tokenizer revisions, quantization configuration, engine revision, container digest, CUDA, driver, GPU shape, topology, scheduler configuration, and material kernels. Missing values are `unknown`, never wildcards.
 
-Compatibility produces one of four results: `exact`, `compatible-by-policy`, `incompatible`, or `unknown`. A named, versioned policy may ignore a known difference, but it cannot waive missing identity. The evidence envelope separately labels observations, predictions, derived metrics, and assertions; binds them to their source, adapter, workload, attempt, timestamps, artifacts, and transformations; and rejects complete evidence with unknown runtime dimensions.
+Compatibility produces one of four results: `exact`, `compatible-by-policy`, `incompatible`, or `unknown`. V1 permits a named, versioned policy to waive only a known driver-version difference; all other material runtime differences invalidate reuse, and missing identity is never waivable. The evidence envelope separately labels observations, predictions, derived metrics, and assertions; binds them to their source, adapter, workload, attempt, timestamps, artifacts, and transformations; and rejects complete evidence with unknown runtime dimensions.
 
 ```bash
 go run ./cmd/inferlab runtime validate examples/runtime-signature-l4-vllm.json
@@ -237,6 +237,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the local merge gate and review expec
 - [Signed safety cases and offline verification](docs/safety-case.md)
 - [Threat model](docs/threat-model.md)
 - [Release-readiness audit](docs/release-readiness.md)
+- [Detailed production-readiness, testing, AWS, and product-value report](docs/production-readiness-report.md)
+- [AWS validation boundary and opt-in buildspec](docs/aws-validation.md)
 - [Trace format and privacy contract](docs/trace-format.md)
 - [Design principles](docs/design-principles.md)
 - [Security policy](SECURITY.md)

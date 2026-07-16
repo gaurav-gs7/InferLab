@@ -163,11 +163,16 @@ func readBoundedRegular(root, relative string) ([]byte, string, error) {
 	if !info.Mode().IsRegular() || info.Mode()&os.ModeSymlink != 0 || info.Size() > MaxArtifactBytes {
 		return nil, "", fmt.Errorf("%w: %q is not a bounded regular file", ErrArtifactMismatch, relative)
 	}
-	file, err := os.Open(resolved)
+	rootHandle, err := os.OpenRoot(rootResolved)
+	if err != nil {
+		return nil, "", fmt.Errorf("%w: open case root: %v", ErrUnsafePath, err)
+	}
+	defer func() { _ = rootHandle.Close() }()
+	file, err := rootHandle.Open(canonical)
 	if err != nil {
 		return nil, "", fmt.Errorf("%w: open %q: %v", ErrArtifactMismatch, relative, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	data, err := io.ReadAll(io.LimitReader(file, MaxArtifactBytes+1))
 	if err != nil || len(data) > MaxArtifactBytes {
 		return nil, "", fmt.Errorf("%w: read %q", ErrArtifactMismatch, relative)

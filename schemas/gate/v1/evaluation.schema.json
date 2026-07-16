@@ -23,7 +23,7 @@
   "$defs": {
     "name": {"type": "string", "pattern": "^[a-z0-9](?:[a-z0-9._-]{0,126}[a-z0-9])?$"},
     "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
-    "dimension": {"enum": ["model.id", "model.revision", "model.tokenizer_id", "model.tokenizer_revision", "model.quantization", "model.quantization_config_digest", "engine.name", "engine.revision", "engine.container_image", "platform.cuda_version", "platform.driver_version", "platform.gpu_sku", "platform.gpu_count", "platform.topology", "scheduler.name", "scheduler.config_digest", "kernels"]},
+    "dimension": {"enum": ["platform.driver_version"]},
     "compatibility_policy": {
       "type": "object", "additionalProperties": false, "required": ["name", "version", "ignored_dimensions"],
       "properties": {

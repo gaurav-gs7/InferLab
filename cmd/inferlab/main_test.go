@@ -2,11 +2,20 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+type failingWriter struct{ err error }
+
+func (writer failingWriter) Write([]byte) (int, error) { return 0, writer.err }
+
+type shortWriter struct{}
+
+func (shortWriter) Write(data []byte) (int, error) { return len(data) / 2, nil }
 
 func TestRun(t *testing.T) {
 	t.Parallel()
@@ -49,6 +58,20 @@ func TestRun(t *testing.T) {
 				t.Errorf("stderr %q does not contain %q", stderr.String(), tt.wantStderr)
 			}
 		})
+	}
+}
+
+func TestRunReportsOutputFailure(t *testing.T) {
+	t.Parallel()
+	failure := failingWriter{err: errors.New("broken output")}
+	if code := run([]string{"help"}, failure, &bytes.Buffer{}); code != 1 {
+		t.Fatalf("stdout failure code = %d, want 1", code)
+	}
+	if code := run(nil, &bytes.Buffer{}, failure); code != 1 {
+		t.Fatalf("stderr failure code = %d, want 1", code)
+	}
+	if code := run([]string{"help"}, shortWriter{}, &bytes.Buffer{}); code != 1 {
+		t.Fatalf("short stdout code = %d, want 1", code)
 	}
 }
 

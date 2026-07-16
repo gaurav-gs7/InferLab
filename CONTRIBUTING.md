@@ -20,6 +20,8 @@ make build
 
 `make check` formats source, runs static analysis, unit tests, and the race detector. Feature-specific changes may also require fuzz, integration, benchmark, or kind-based tests documented beside that feature.
 
+Before a release candidate, run `make audit`. The extended audit checks the diff and module, enforces aggregate coverage, repeats tests in randomized order, runs the race detector and every fuzz target, cross-builds the CLI for Linux/macOS/Windows on amd64/arm64 where applicable, and reproduces the signed safety-case workflow.
+
 Trace, change, evidence, adapter, gate, parser, or privacy changes must also run `make fuzz`. Override the default campaign length with `FUZZTIME=1m make fuzz`.
 
 ## Engineering expectations

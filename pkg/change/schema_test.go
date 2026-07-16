@@ -14,7 +14,7 @@ func TestPublishedExampleAndSchema(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer example.Close()
+	defer func() { _ = example.Close() }()
 	document, err := Decode(example)
 	if err != nil {
 		t.Fatalf("published example does not validate: %v", err)

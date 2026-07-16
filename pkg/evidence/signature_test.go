@@ -154,11 +154,23 @@ func TestCompatibilityPolicyValidation(t *testing.T) {
 		{Name: "valid", Version: "1.0", IgnoredDimensions: []Dimension{"invented"}},
 		{Name: "valid", Version: "1.0", IgnoredDimensions: []Dimension{DimensionGPUCount, DimensionGPUCount}},
 		{Name: "valid", Version: "1.0", IgnoredDimensions: []Dimension{DimensionTopology, DimensionGPUCount}},
+		{Name: "valid", Version: "1.0", IgnoredDimensions: []Dimension{DimensionModelRevision}},
 	}
 	for _, policy := range tests {
 		policy := policy
 		if _, err := CompareRuntimeSignatures(left, right, &policy); !errors.Is(err, ErrInvalidPolicy) {
 			t.Fatalf("policy %#v error = %v, want %v", policy, err, ErrInvalidPolicy)
+		}
+	}
+}
+
+func TestRuntimeSignatureRejectsMutableVersionPatterns(t *testing.T) {
+	t.Parallel()
+	for _, version := range []string{"nightly", "0.6.x", "12.4-snapshot", "^12.4"} {
+		signature := validRuntimeSignature(OriginObserved)
+		signature.Platform.DriverVersion = version
+		if err := ValidateRuntimeSignature(signature); !errors.Is(err, ErrInvalidSignature) {
+			t.Errorf("driver version %q error = %v, want %v", version, err, ErrInvalidSignature)
 		}
 	}
 }

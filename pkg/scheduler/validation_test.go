@@ -65,6 +65,7 @@ func TestValidateSnapshot(t *testing.T) {
 		{name: "invalid adapter", mutate: func(s *ClusterSnapshot) { s.Endpoints[0].LoadedAdapters = map[string]struct{}{"": struct{}{}} }},
 		{name: "zero state version", mutate: func(s *ClusterSnapshot) { s.Endpoints[0].StateVersion = 0 }},
 		{name: "missing observation", mutate: func(s *ClusterSnapshot) { s.Endpoints[0].ObservedAt = time.Time{} }},
+		{name: "future observation", mutate: func(s *ClusterSnapshot) { s.Endpoints[0].ObservedAt = s.CapturedAt.Add(time.Nanosecond) }},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

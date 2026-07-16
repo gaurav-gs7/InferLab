@@ -35,11 +35,12 @@ func marshalCanonical(record Record, limits Limits) ([]byte, error) {
 // concurrent use. A write failure is terminal because the final line may be
 // partial; subsequent Encode calls return ErrEncoderFailed.
 type Encoder struct {
-	writer  io.Writer
-	limits  Limits
-	records uint64
-	bytes   int64
-	failed  error
+	writer      io.Writer
+	limits      Limits
+	records     uint64
+	bytes       int64
+	lastArrival int64
+	failed      error
 }
 
 // NewEncoder returns a bounded streaming encoder.
@@ -59,6 +60,12 @@ func (e *Encoder) Encode(record Record) error {
 	if e.records >= e.limits.MaxRecords {
 		return fmt.Errorf("%w: maximum is %d", ErrRecordLimit, e.limits.MaxRecords)
 	}
+	if record.Sequence != e.records+1 {
+		return fmt.Errorf("%w: sequence must be contiguous and start at 1; got %d, want %d", ErrInvalidRecord, record.Sequence, e.records+1)
+	}
+	if e.records > 0 && record.ArrivalOffsetNS < e.lastArrival {
+		return fmt.Errorf("%w: arrival offsets must be non-decreasing", ErrInvalidRecord)
+	}
 	encoded, err := marshalCanonical(record, e.limits)
 	if err != nil {
 		return err
@@ -74,6 +81,7 @@ func (e *Encoder) Encode(record Record) error {
 	}
 	e.records++
 	e.bytes += recordBytes
+	e.lastArrival = record.ArrivalOffsetNS
 	return nil
 }
 
@@ -94,11 +102,12 @@ func writeAll(writer io.Writer, data []byte) error {
 // Decoder reads bounded JSONL records. The first malformed or resource-limit
 // error is terminal and is returned again on subsequent calls.
 type Decoder struct {
-	reader    *bufio.Reader
-	limits    Limits
-	records   uint64
-	bytesRead int64
-	failed    error
+	reader      *bufio.Reader
+	limits      Limits
+	records     uint64
+	bytesRead   int64
+	lastArrival int64
+	failed      error
 }
 
 // NewDecoder returns a bounded streaming decoder.
@@ -157,14 +166,33 @@ func (d *Decoder) Decode() (Record, error) {
 		return Record{}, d.fail(offset, err)
 	}
 
+	var version struct {
+		SchemaVersion string `json:"schema_version"`
+	}
+	if err := json.Unmarshal(line, &version); err != nil {
+		return Record{}, d.fail(offset, fmt.Errorf("%w: JSON: %v", ErrInvalidRecord, err))
+	}
 	var record Record
-	if err := json.Unmarshal(line, &record); err != nil {
+	if version.SchemaVersion == CurrentSchemaVersion {
+		decoder := json.NewDecoder(bytes.NewReader(line))
+		decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&record); err != nil {
+			return Record{}, d.fail(offset, fmt.Errorf("%w: JSON: %v", ErrInvalidRecord, err))
+		}
+	} else if err := json.Unmarshal(line, &record); err != nil {
 		return Record{}, d.fail(offset, fmt.Errorf("%w: JSON: %v", ErrInvalidRecord, err))
 	}
 	if err := validateRecord(record, d.limits, true); err != nil {
 		return Record{}, d.fail(offset, err)
 	}
+	if record.Sequence != d.records+1 {
+		return Record{}, d.fail(offset, fmt.Errorf("%w: sequence must be contiguous and start at 1; got %d, want %d", ErrInvalidRecord, record.Sequence, d.records+1))
+	}
+	if d.records > 0 && record.ArrivalOffsetNS < d.lastArrival {
+		return Record{}, d.fail(offset, fmt.Errorf("%w: arrival offsets must be non-decreasing", ErrInvalidRecord))
+	}
 	d.records++
+	d.lastArrival = record.ArrivalOffsetNS
 	return record, nil
 }
 

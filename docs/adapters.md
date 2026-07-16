@@ -8,6 +8,8 @@ Producer reports and external adapter processes are untrusted. The implementatio
 
 - accepts one JSON value, bounded to 8 MiB and 64 nesting levels;
 - rejects duplicate fields, unknown fields, trailing values, invalid numbers, mutable producer aliases, and undeclared metrics;
+- rejects complete inputs without ordered RFC 3339 start/finish timestamps or a complete runtime signature;
+- caps capability declarations at 4,096 metrics and rejects control characters in protocol failure messages;
 - launches external adapters directly without a shell;
 - supplies an empty environment unless the caller explicitly opts into inheritance;
 - propagates context cancellation, caps stdout at 8 MiB by default, caps diagnostic stderr, and applies a bounded process wait;
