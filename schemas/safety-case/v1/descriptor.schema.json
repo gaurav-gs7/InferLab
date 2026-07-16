@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gaurav-gs7/InferLab/schemas/safety-case/v1/descriptor.schema.json",
+  "title": "InferLab safety-case assembly descriptor v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "name", "created_at", "evaluation_path", "result_path", "artifacts", "limitations"],
+  "properties": {
+    "schema": {"const": "inferlab.safety-case-descriptor"},
+    "schema_version": {"const": "1.0"},
+    "name": {"$ref": "#/$defs/name"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "evaluation_path": {"$ref": "#/$defs/path"},
+    "result_path": {"$ref": "#/$defs/path"},
+    "artifacts": {"type": "array", "maxItems": 510, "items": {"$ref": "#/$defs/artifact"}},
+    "limitations": {"type": "array", "maxItems": 128, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 1024}}
+  },
+  "$defs": {
+    "name": {"type": "string", "pattern": "^[a-z0-9](?:[a-z0-9._-]{0,126}[a-z0-9])?$"},
+    "path": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"},
+    "role": {"enum": ["evidence", "counterexample", "supporting"]},
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "role", "path", "media_type"],
+      "properties": {
+        "name": {"$ref": "#/$defs/name"},
+        "role": {"$ref": "#/$defs/role"},
+        "path": {"$ref": "#/$defs/path"},
+        "media_type": {"type": "string", "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$"}
+      }
+    }
+  }
+}

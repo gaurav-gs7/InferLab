@@ -1,0 +1,66 @@
+name: Safety gate proof
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safety-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-proof:
+    name: Reproduce signed decisions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.x"
+          cache: false
+
+      - name: Verify module contents
+        run: go mod verify
+
+      - name: Build CLI
+        run: make build
+
+      - name: Reproduce and verify public safety cases
+        run: bash scripts/demo-safety-case.sh dist/safety-gate
+
+      - name: Publish decision summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## InferLab public safety-gate proof"
+            if [[ -f dist/safety-gate/block-safety-case.json ]]; then
+              echo "### BLOCK"
+              jq -r '"Decision: **\(.decision)**\n\n" + (.claims[] | "- `\(.rule_id)` — `\(.code)`: \(.message)")' dist/safety-gate/block-safety-case.json
+              echo ""
+            fi
+            if [[ -f dist/safety-gate/inconclusive-safety-case.json ]]; then
+              echo "### INCONCLUSIVE"
+              jq -r '"Decision: **\(.decision)**\n\nGaps:\n" + (.gaps[] | "- " + .)' dist/safety-gate/inconclusive-safety-case.json
+            fi
+            echo ""
+            echo "These are synthetic contract proofs, not production PASS evidence."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload reviewable safety-case closure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: public-safety-case-proof
+          path: dist/safety-gate
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,26 @@
+{
+  "schema": "inferlab.safety-case-descriptor",
+  "schema_version": "1.0",
+  "name": "public-synthetic-block-case",
+  "created_at": "2026-07-16T10:00:00Z",
+  "evaluation_path": "block-gate.json",
+  "result_path": "block-result.json",
+  "artifacts": [
+    {
+      "name": "raw-block-observation",
+      "role": "evidence",
+      "path": "artifacts/block-observation.json",
+      "media_type": "application/json"
+    },
+    {
+      "name": "synthetic-ttft-counterexample",
+      "role": "counterexample",
+      "path": "block-counterexample.json",
+      "media_type": "application/json"
+    }
+  ],
+  "limitations": [
+    "Synthetic public fixture for reproducibility; this is not evidence that any production system is unsafe.",
+    "The two-request counterexample is valid only for the deterministic synthetic fixture oracle."
+  ]
+}

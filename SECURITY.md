@@ -24,10 +24,13 @@ High-priority issues include:
 - forged producer identity, artifact substitution, or classification changes that present predicted evidence as observed;
 - stale, incomplete, runtime-incompatible, under-sampled, or out-of-distribution evidence producing `PASS`;
 - decision/result tampering that breaks the canonical evaluation or evidence graph without detection;
+- safety-case signature confusion, manifest substitution, missing artifact closure, symlink escape, or path traversal;
 - path traversal or arbitrary file overwrite in report generation;
 - command/config injection in exporters or integrations;
 - authentication, authorization, or secret-handling failures;
 - distributed admission errors that can bypass configured limits.
 - counterexample minimization that reports a non-reproducing or budget-incomplete result as a verified minimum.
+
+The public CI safety proof uses ephemeral development signing keys and no repository secrets. Do not commit production private keys, credentials, raw prompts/responses, proprietary traces, or sensitive benchmark artifacts. See the [threat model](docs/threat-model.md) for trust boundaries and residual risks.
 
 General hardening suggestions without a concrete security impact can be filed as regular issues.

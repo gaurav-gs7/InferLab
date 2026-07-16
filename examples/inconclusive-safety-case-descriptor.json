@@ -1,0 +1,12 @@
+{
+  "schema": "inferlab.safety-case-descriptor",
+  "schema_version": "1.0",
+  "name": "public-missing-evidence-case",
+  "created_at": "2026-07-16T10:00:00Z",
+  "evaluation_path": "missing-evidence-gate.json",
+  "result_path": "inconclusive-result.json",
+  "artifacts": [],
+  "limitations": [
+    "Synthetic public fixture with intentionally absent observations; it demonstrates a fail-closed evidence gap."
+  ]
+}

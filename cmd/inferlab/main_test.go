@@ -28,7 +28,9 @@ func TestRun(t *testing.T) {
 		{name: "change usage", args: []string{"change"}, wantCode: 2, wantStderr: "inferlab change validate"},
 		{name: "evidence usage", args: []string{"evidence"}, wantCode: 2, wantStderr: "inferlab evidence validate"},
 		{name: "gate usage", args: []string{"gate"}, wantCode: 2, wantStderr: "inferlab gate evaluate"},
+		{name: "evaluate usage", args: []string{"evaluate"}, wantCode: 2, wantStderr: "inferlab evaluate"},
 		{name: "runtime usage", args: []string{"runtime"}, wantCode: 2, wantStderr: "inferlab runtime validate"},
+		{name: "safety case usage", args: []string{"safety-case"}, wantCode: 2, wantStderr: "inferlab safety-case assemble"},
 		{name: "missing command", wantCode: 2, wantStderr: "Usage:"},
 		{name: "unknown command", args: []string{"nope"}, wantCode: 2, wantStderr: "unknown command"},
 	}
@@ -75,6 +77,23 @@ func TestRunGateInconclusive(t *testing.T) {
 	stderr.Reset()
 	if got := run([]string{"gate", "evaluation", "validate", example}, &stdout, &stderr); got != 0 {
 		t.Fatalf("gate evaluation validate code = %d, want 0; stderr=%q", got, stderr.String())
+	}
+}
+
+func TestRunEvaluateAliasWritesResult(t *testing.T) {
+	t.Parallel()
+	example := filepath.Join("..", "..", "examples", "missing-evidence-gate.json")
+	result := filepath.Join(t.TempDir(), "result.json")
+	var stdout, stderr bytes.Buffer
+	if got := run([]string{"evaluate", example, result}, &stdout, &stderr); got != 4 {
+		t.Fatalf("run() code = %d, want 4; stderr=%q", got, stderr.String())
+	}
+	data, err := os.ReadFile(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"decision":"INCONCLUSIVE"`) {
+		t.Fatalf("result does not contain decision: %s", data)
 	}
 }
 

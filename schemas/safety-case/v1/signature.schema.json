@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gaurav-gs7/InferLab/schemas/safety-case/v1/signature.schema.json",
+  "title": "InferLab detached safety-case signature v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "algorithm", "manifest_digest", "key_id", "value"],
+  "properties": {
+    "schema": {"const": "inferlab.safety-case-signature"},
+    "schema_version": {"const": "1.0"},
+    "algorithm": {"const": "ed25519"},
+    "manifest_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "key_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "value": {"type": "string", "pattern": "^[A-Za-z0-9_-]{86}$"}
+  }
+}

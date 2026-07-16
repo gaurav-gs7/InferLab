@@ -1,0 +1,23 @@
+{
+  "schema": "inferlab.counterexample",
+  "schema_version": "1.0",
+  "name": "synthetic-ttft-block",
+  "concurrency": 16,
+  "requests": [
+    {
+      "id": "request-1",
+      "arrival_offset_milliseconds": 0,
+      "prompt_tokens": 512,
+      "output_tokens": 128,
+      "tenant": "tenant-1"
+    },
+    {
+      "id": "request-2",
+      "arrival_offset_milliseconds": 1,
+      "prompt_tokens": 512,
+      "output_tokens": 128,
+      "tenant": "tenant-2"
+    }
+  ],
+  "fault": {"type": "none"}
+}

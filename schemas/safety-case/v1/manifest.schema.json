@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/gaurav-gs7/InferLab/schemas/safety-case/v1/manifest.schema.json",
+  "title": "InferLab offline safety-case manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "name", "created_at", "change_digest", "evaluation_digest", "result_digest", "decision", "artifacts", "claims", "gaps", "limitations"],
+  "properties": {
+    "schema": {"const": "inferlab.safety-case"},
+    "schema_version": {"const": "1.0"},
+    "name": {"$ref": "#/$defs/name"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "change_digest": {"$ref": "#/$defs/digest"},
+    "evaluation_digest": {"$ref": "#/$defs/digest"},
+    "result_digest": {"$ref": "#/$defs/digest"},
+    "decision": {"enum": ["PASS", "BLOCK", "INCONCLUSIVE"]},
+    "artifacts": {"type": "array", "minItems": 2, "maxItems": 512, "items": {"$ref": "#/$defs/artifact"}},
+    "claims": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/claim"}},
+    "gaps": {"type": "array", "maxItems": 256, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 1024}},
+    "limitations": {"type": "array", "maxItems": 128, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 1024}}
+  },
+  "$defs": {
+    "name": {"type": "string", "pattern": "^[a-z0-9](?:[a-z0-9._-]{0,126}[a-z0-9])?$"},
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "role": {"enum": ["gate-evaluation", "gate-result", "evidence", "counterexample", "supporting"]},
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "role", "path", "media_type", "digest", "size_bytes"],
+      "properties": {
+        "name": {"$ref": "#/$defs/name"},
+        "role": {"$ref": "#/$defs/role"},
+        "path": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "media_type": {"type": "string", "pattern": "^[a-z0-9][a-z0-9!#$&^_.+-]*/[a-z0-9][a-z0-9!#$&^_.+-]*$"},
+        "digest": {"$ref": "#/$defs/digest"},
+        "size_bytes": {"type": "integer", "minimum": 0, "maximum": 16777216}
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule_id", "outcome", "code", "message"],
+      "properties": {
+        "rule_id": {"$ref": "#/$defs/name"},
+        "outcome": {"enum": ["pass", "block", "inconclusive"]},
+        "code": {"enum": ["within-policy", "violation-risk", "uncertainty-overlap", "missing-coverage", "out-of-distribution", "missing-metric", "invalid-metric", "missing-uncertainty", "under-sampled", "incomplete-evidence", "non-observed-evidence", "stale-evidence", "future-evidence", "runtime-incompatible", "runtime-unknown"]},
+        "evidence_digest": {"$ref": "#/$defs/digest"},
+        "message": {"type": "string", "minLength": 1, "maxLength": 1024}
+      }
+    }
+  }
+}

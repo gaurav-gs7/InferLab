@@ -5,13 +5,16 @@ GOFLAGS ?=
 BIN_DIR ?= bin
 FUZZTIME ?= 10s
 
-.PHONY: build check clean fmt fuzz help test test-race vet
+.PHONY: build check clean demo-safety-case fmt fuzz help test test-race vet
 
 help: ## Show available targets.
 	@awk 'BEGIN {FS = ":.*## "; printf "InferLab development targets:\n\n"} /^[a-zA-Z_-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 build: ## Build the InferLab CLI.
 	$(GO) build $(GOFLAGS) -trimpath -o $(BIN_DIR)/inferlab ./cmd/inferlab
+
+demo-safety-case: build ## Reproduce signed BLOCK and INCONCLUSIVE public fixtures.
+	bash scripts/demo-safety-case.sh
 
 fmt: ## Format Go source files.
 	$(GO) fmt ./...
@@ -24,6 +27,7 @@ fuzz: ## Run short untrusted-input and privacy fuzz campaigns.
 	$(GO) test -run '^$$' -fuzz '^FuzzRuntimeDecoderNeverPanics$$' -fuzztime=$(FUZZTIME) -parallel=2 ./pkg/evidence
 	$(GO) test -run '^$$' -fuzz '^FuzzDecoderNeverPanics$$' -fuzztime=$(FUZZTIME) -parallel=2 ./pkg/adapter
 	$(GO) test -run '^$$' -fuzz '^FuzzDecoderNeverPanics$$' -fuzztime=$(FUZZTIME) -parallel=2 ./pkg/gate
+	$(GO) test -run '^$$' -fuzz '^FuzzDecoderNeverPanics$$' -fuzztime=$(FUZZTIME) -parallel=2 ./pkg/safetycase
 
 vet: ## Run Go static analysis.
 	$(GO) vet ./...

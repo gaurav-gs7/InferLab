@@ -165,7 +165,7 @@ Invalid input and failed execution are not synonyms for `BLOCK`. They are report
 
 The safety case is a machine-readable evidence graph plus a human-readable summary. It contains immutable input digests, admitted and excluded evidence, runtime compatibility, coverage, uncertainty, policy outcomes, minimized counterexamples, actual cost, limitations, and cleanup status where external resources were used.
 
-Signing authenticates the root manifest and artifact closure. It does not make a prediction observed, make stale evidence current, or guarantee production safety. Offline verification must be possible without contacting an evidence producer.
+`pkg/safetycase` implements the bounded assembly descriptor, canonical manifest, raw-artifact closure, deterministic gate replay, exact claim/gap projection, detached Ed25519 signatures, and offline verification. A `BLOCK` case requires a valid counterexample artifact. Signing authenticates the root manifest and artifact closure. It does not make a prediction observed, make stale evidence current, identify an authorized organizational approver, or guarantee production safety.
 
 ## External execution and authorization
 

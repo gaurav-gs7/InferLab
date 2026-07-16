@@ -4,9 +4,10 @@
 
 [![CI](https://github.com/gaurav-gs7/InferLab/actions/workflows/ci.yml/badge.svg)](https://github.com/gaurav-gs7/InferLab/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml/badge.svg)](https://github.com/gaurav-gs7/InferLab/actions/workflows/codeql.yml)
+[![Safety gate proof](https://github.com/gaurav-gs7/InferLab/actions/workflows/safety-gate.yml/badge.svg)](https://github.com/gaurav-gs7/InferLab/actions/workflows/safety-gate.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-> **Status:** pre-alpha. Immutable inference-change intent, exact runtime/evidence validity, bounded lossless adapter normalization, fail-closed uncertainty gating, bounded fault evidence, and reverified counterexample minimization are implemented. Automated fault execution and signed safety cases are active milestones—not shipped claims.
+> **Status:** pre-alpha. Immutable inference-change intent, exact runtime/evidence validity, lossless adapter normalization, fail-closed uncertainty gating, reverified counterexample minimization, and signed offline-verifiable safety cases are implemented. Automated fault execution, real target-system validation, organizational signing policy, and a production `PASS` proof are not shipped claims.
 
 > **Naming:** `InferLab` is a working repository name. It conflicts with Doubleword's existing [Inference Lab](https://github.com/doublewordai/inference-lab) simulator and must be replaced before v0.1. No rename will be performed without an explicit maintainer decision.
 
@@ -52,9 +53,9 @@ The initial contract envelope remains intentionally small: single-node vLLM on a
                        signed inference safety case
 ```
 
-## Intended ownership boundary
+## Ownership boundary
 
-The planned trusted core is limited to:
+The trusted core is limited to:
 
 - exact runtime signatures spanning model, tokenizer, engine, container, CUDA, driver, GPU, scheduler, and material kernel configuration;
 - source-neutral evidence envelopes that keep observed, predicted, and derived values distinct;
@@ -115,6 +116,20 @@ go run ./cmd/inferlab gate evaluate examples/missing-evidence-gate.json # exits 
 ```
 
 See the [gate and counterexample specification](docs/gate.md), [gate schemas](schemas/gate/v1), and deliberately incomplete [public example](examples/missing-evidence-gate.json).
+
+## Signed offline safety cases
+
+A safety case binds the exact evaluation, replayed result, raw evidence bytes, counterexample, claims, gaps, limitations, and artifact sizes/digests beneath one canonical manifest. Assembly and offline verification both replay the deterministic gate. Detached Ed25519 signatures use a domain separator and public-key digest; signing authenticates provenance but cannot improve evidence class or sufficiency.
+
+Only canonical relative regular files beneath one case root are admitted. Traversal, symlinks, duplicate paths, oversized artifacts, missing evidence bytes, result drift, claim drift, signature tampering, and key mismatch fail closed.
+
+```bash
+make demo-safety-case
+```
+
+The demo reproduces a synthetic `BLOCK` and an intentionally evidence-free `INCONCLUSIVE`, signs both with an ephemeral development key, verifies their complete closures offline, and deletes the private key. The repository deliberately publishes no `PASS` fixture without adequate observed target-system evidence.
+
+See the [safety-case contract and CLI](docs/safety-case.md), [published schemas](schemas/safety-case/v1), [threat model](docs/threat-model.md), and [release-readiness audit](docs/release-readiness.md).
 
 ## Implemented supporting foundations
 
@@ -180,13 +195,14 @@ Prerequisites: Go 1.26 or newer.
 ```bash
 make check
 make build
+make demo-safety-case
 ./bin/inferlab change validate examples/qwen-vllm-batching-change.json
 ./bin/inferlab runtime validate examples/runtime-signature-l4-vllm.json
 ./bin/inferlab evidence validate examples/guidellm-observed-evidence.json
 ./bin/inferlab adapter normalize guidellm-fixture-v1 examples/guidellm-adapter-input.json
 ```
 
-The CLI validates and identifies change, runtime, evidence, normalized-report, gate-evaluation, and gate-result documents; normalizes pinned producer fixtures; and emits canonical gate decisions with stable exit codes. Signing and offline safety-case verification remain unimplemented.
+The CLI validates and identifies change, runtime, evidence, normalized-report, gate-evaluation, gate-result, and safety-case documents; normalizes pinned producer fixtures; emits canonical gate decisions with stable exit codes; and assembles, signs, and verifies artifact closures offline.
 
 ## Engineering standards
 
@@ -204,7 +220,7 @@ InferLab treats reproducibility and correctness as product features:
 - explicit `INCONCLUSIVE` results for insufficient or out-of-distribution evidence;
 - budget ceilings and teardown verification for cloud experiments;
 - versioned schemas and compatibility policy;
-- least-privilege CI, vulnerability scanning, and supply-chain provenance;
+- least-privilege CI, module verification, vulnerability scanning, CodeQL, and dependency update policy;
 - honest benchmarks with committed workloads, configuration, and methodology.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the local merge gate and review expectations.
@@ -218,6 +234,9 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the local merge gate and review expec
 - [Runtime identity and evidence contract](docs/evidence.md)
 - [Adapter protocol and lossless normalization](docs/adapters.md)
 - [Uncertainty gate and reproducible counterexamples](docs/gate.md)
+- [Signed safety cases and offline verification](docs/safety-case.md)
+- [Threat model](docs/threat-model.md)
+- [Release-readiness audit](docs/release-readiness.md)
 - [Trace format and privacy contract](docs/trace-format.md)
 - [Design principles](docs/design-principles.md)
 - [Security policy](SECURITY.md)
