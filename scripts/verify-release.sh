@@ -19,11 +19,8 @@ if [[ -n "$(gofmt -l .)" ]]; then
 fi
 go vet ./...
 go test -coverprofile="$audit/coverage.out" -covermode=atomic ./...
-coverage=$(go tool cover -func="$audit/coverage.out" | awk '/^total:/ {gsub(/%/, "", $3); print $3}')
-if ! awk -v coverage="$coverage" 'BEGIN {exit !(coverage + 0 >= 75)}'; then
-  echo "Aggregate statement coverage ${coverage}% is below 75%." >&2
-  exit 1
-fi
+bash scripts/check-coverage.sh "$audit/coverage.out" 90
+coverage=$(go tool cover -func="$audit/coverage.out" | awk '/^total:/ {print $3}')
 go test -race ./...
 go test -shuffle=on -count=3 ./...
 FUZZTIME="$fuzztime" make fuzz
@@ -47,4 +44,4 @@ bash scripts/demo-safety-case.sh "$audit/safety-gate"
 ./bin/inferlab adapter normalize guidellm-fixture-v1 examples/guidellm-adapter-input.json > "$audit/normalized-report.json"
 ./bin/inferlab adapter validate "$audit/normalized-report.json"
 
-echo "Release audit passed: coverage=${coverage}% fuzztime=$fuzztime targets=${targets[*]}"
+echo "Release audit passed: coverage=$coverage fuzztime=$fuzztime targets=${targets[*]}"

@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -163,6 +164,252 @@ func TestRunAdapterNormalize(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), `"schema":"inferlab.normalized-report"`) || !strings.Contains(stdout.String(), `"value":812.5`) {
 		t.Fatalf("stdout does not contain normalized evidence: %q", stdout.String())
+	}
+	report := filepath.Join(t.TempDir(), "normalized.json")
+	if err := os.WriteFile(report, stdout.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range []string{"validate", "digest"} {
+		stdout.Reset()
+		stderr.Reset()
+		if got := run([]string{"adapter", action, report}, &stdout, &stderr); got != 0 {
+			t.Fatalf("adapter %s code = %d, want 0; stderr=%q", action, got, stderr.String())
+		}
+		if !strings.Contains(stdout.String(), "sha256:") {
+			t.Fatalf("adapter %s stdout = %q, want digest", action, stdout.String())
+		}
+	}
+}
+
+func TestRunSafetyCaseLifecycle(t *testing.T) {
+	t.Parallel()
+
+	work := t.TempDir()
+	copyTree(t, filepath.Join("..", "..", "examples"), work)
+	result := filepath.Join(work, "block-result.json")
+	manifest := filepath.Join(work, "block-safety-case.json")
+	privateKey := filepath.Join(work, "private.pem")
+	publicKey := filepath.Join(work, "public.pem")
+	signature := filepath.Join(work, "block-safety-case.sig.json")
+
+	commands := []struct {
+		name       string
+		args       []string
+		wantCode   int
+		wantStdout string
+	}{
+		{name: "evaluate block", args: []string{"evaluate", filepath.Join(work, "block-gate.json"), result}, wantCode: 3, wantStdout: "BLOCK "},
+		{name: "assemble", args: []string{"safety-case", "assemble", filepath.Join(work, "block-safety-case-descriptor.json"), manifest}, wantStdout: "BLOCK sha256:"},
+		{name: "validate", args: []string{"safety-case", "validate", manifest}, wantStdout: "valid public-synthetic-block-case sha256:"},
+		{name: "digest", args: []string{"safety-case", "digest", manifest}, wantStdout: "sha256:"},
+		{name: "keygen", args: []string{"safety-case", "keygen", privateKey, publicKey}, wantStdout: "sha256:"},
+		{name: "sign", args: []string{"safety-case", "sign", manifest, privateKey, signature}, wantStdout: "sha256:"},
+		{name: "verify default root", args: []string{"safety-case", "verify", manifest, signature, publicKey}, wantStdout: "verified public-synthetic-block-case"},
+		{name: "verify explicit root", args: []string{"safety-case", "verify", manifest, signature, publicKey, work}, wantStdout: "verified public-synthetic-block-case"},
+	}
+	for _, tt := range commands {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			if got := run(tt.args, &stdout, &stderr); got != tt.wantCode {
+				t.Fatalf("run() code = %d, want %d; stderr=%q", got, tt.wantCode, stderr.String())
+			}
+			if !strings.Contains(stdout.String(), tt.wantStdout) {
+				t.Fatalf("stdout %q does not contain %q", stdout.String(), tt.wantStdout)
+			}
+		})
+	}
+
+	info, err := os.Stat(privateKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0o600 {
+		t.Fatalf("private key mode = %o, want 600", info.Mode().Perm())
+	}
+}
+
+func TestRunSafetyCaseFailures(t *testing.T) {
+	t.Parallel()
+
+	work := t.TempDir()
+	copyTree(t, filepath.Join("..", "..", "examples"), work)
+	invalidJSON := filepath.Join(work, "invalid.json")
+	if err := os.WriteFile(invalidJSON, []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	oversized := filepath.Join(work, "oversized.pem")
+	if err := os.WriteFile(oversized, bytes.Repeat([]byte("x"), (64<<10)+1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	privateKey := filepath.Join(work, "private.pem")
+	publicKey := filepath.Join(work, "public.pem")
+	if code := run([]string{"safety-case", "keygen", privateKey, publicKey}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
+		t.Fatalf("keygen setup code = %d, want 0", code)
+	}
+	manifest := filepath.Join(work, "block-safety-case.json")
+	result := filepath.Join(work, "block-result.json")
+	if code := run([]string{"evaluate", filepath.Join(work, "block-gate.json"), result}, &bytes.Buffer{}, &bytes.Buffer{}); code != 3 {
+		t.Fatalf("evaluate setup code = %d, want 3", code)
+	}
+	if code := run([]string{"safety-case", "assemble", filepath.Join(work, "block-safety-case-descriptor.json"), manifest}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
+		t.Fatalf("assemble setup code = %d, want 0", code)
+	}
+	signature := filepath.Join(work, "valid.sig.json")
+	if code := run([]string{"safety-case", "sign", manifest, privateKey, signature}, &bytes.Buffer{}, &bytes.Buffer{}); code != 0 {
+		t.Fatalf("sign setup code = %d, want 0", code)
+	}
+
+	tests := []struct {
+		name     string
+		args     []string
+		wantCode int
+		wantErr  string
+	}{
+		{name: "assemble missing descriptor", args: []string{"safety-case", "assemble", filepath.Join(work, "missing.json"), filepath.Join(work, "out.json")}, wantCode: 1, wantErr: "assemble safety case"},
+		{name: "assemble invalid descriptor", args: []string{"safety-case", "assemble", invalidJSON, filepath.Join(work, "out.json")}, wantCode: 1, wantErr: "assemble safety case"},
+		{name: "assemble output parent missing", args: []string{"safety-case", "assemble", filepath.Join(work, "block-safety-case-descriptor.json"), filepath.Join(work, "missing", "out.json")}, wantCode: 1, wantErr: "write safety case"},
+		{name: "validate invalid manifest", args: []string{"safety-case", "validate", invalidJSON}, wantCode: 1, wantErr: "invalid safety case"},
+		{name: "duplicate private key", args: []string{"safety-case", "keygen", privateKey, filepath.Join(work, "unused.pem")}, wantCode: 1, wantErr: "write private key"},
+		{name: "public key parent missing", args: []string{"safety-case", "keygen", filepath.Join(work, "transient.pem"), filepath.Join(work, "missing", "public.pem")}, wantCode: 1, wantErr: "write public key"},
+		{name: "sign missing manifest", args: []string{"safety-case", "sign", filepath.Join(work, "missing.json"), privateKey, filepath.Join(work, "sig.json")}, wantCode: 1, wantErr: "sign safety case"},
+		{name: "sign oversized key", args: []string{"safety-case", "sign", manifest, oversized, filepath.Join(work, "sig.json")}, wantCode: 1, wantErr: "64 KiB"},
+		{name: "sign invalid key", args: []string{"safety-case", "sign", manifest, invalidJSON, filepath.Join(work, "sig.json")}, wantCode: 1, wantErr: "sign safety case"},
+		{name: "sign output parent missing", args: []string{"safety-case", "sign", manifest, privateKey, filepath.Join(work, "missing", "sig.json")}, wantCode: 1, wantErr: "write safety-case signature"},
+		{name: "verify missing manifest", args: []string{"safety-case", "verify", filepath.Join(work, "missing.json"), invalidJSON, publicKey}, wantCode: 1, wantErr: "verify safety case"},
+		{name: "verify missing signature", args: []string{"safety-case", "verify", manifest, filepath.Join(work, "missing.sig"), publicKey}, wantCode: 1, wantErr: "verify safety case"},
+		{name: "verify invalid signature", args: []string{"safety-case", "verify", manifest, invalidJSON, publicKey}, wantCode: 1, wantErr: "verify safety case"},
+		{name: "verify oversized public key", args: []string{"safety-case", "verify", manifest, signature, oversized}, wantCode: 1, wantErr: "64 KiB"},
+		{name: "verify invalid public key", args: []string{"safety-case", "verify", manifest, signature, invalidJSON}, wantCode: 1, wantErr: "verify safety case"},
+		{name: "verify missing artifact root", args: []string{"safety-case", "verify", manifest, signature, publicKey, filepath.Join(work, "missing-root")}, wantCode: 1, wantErr: "verify safety case"},
+		{name: "usage", args: []string{"safety-case", "verify"}, wantCode: 2, wantErr: "Usage:"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			if got := run(tt.args, &stdout, &stderr); got != tt.wantCode {
+				t.Fatalf("run() code = %d, want %d; stdout=%q stderr=%q", got, tt.wantCode, stdout.String(), stderr.String())
+			}
+			if !strings.Contains(stderr.String(), tt.wantErr) {
+				t.Fatalf("stderr %q does not contain %q", stderr.String(), tt.wantErr)
+			}
+		})
+	}
+	if _, err := os.Stat(filepath.Join(work, "transient.pem")); !os.IsNotExist(err) {
+		t.Fatalf("private key was not rolled back after public key failure: %v", err)
+	}
+}
+
+func TestRunGateAndDocumentFailures(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	invalid := filepath.Join(root, "invalid.json")
+	if err := os.WriteFile(invalid, []byte(`{}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	block := filepath.Join("..", "..", "examples", "block-gate.json")
+	tests := []struct {
+		name       string
+		args       []string
+		wantCode   int
+		wantStdout string
+		wantStderr string
+	}{
+		{name: "block to stdout", args: []string{"gate", "evaluate", block}, wantCode: 3, wantStdout: `"decision":"BLOCK"`},
+		{name: "evaluate missing input", args: []string{"evaluate", filepath.Join(root, "missing.json")}, wantCode: 1, wantStderr: "open gate evaluation"},
+		{name: "evaluate invalid input", args: []string{"evaluate", invalid}, wantCode: 1, wantStderr: "invalid gate evaluation"},
+		{name: "evaluate output parent missing", args: []string{"evaluate", block, filepath.Join(root, "missing", "result.json")}, wantCode: 1, wantStderr: "write gate result"},
+		{name: "gate evaluation missing", args: []string{"gate", "evaluation", "validate", filepath.Join(root, "missing.json")}, wantCode: 1, wantStderr: "open gate evaluation"},
+		{name: "gate evaluation invalid", args: []string{"gate", "evaluation", "validate", invalid}, wantCode: 1, wantStderr: "invalid gate evaluation"},
+		{name: "gate result missing", args: []string{"gate", "result", "validate", filepath.Join(root, "missing.json")}, wantCode: 1, wantStderr: "open gate result"},
+		{name: "gate result invalid", args: []string{"gate", "result", "digest", invalid}, wantCode: 1, wantStderr: "invalid gate result"},
+		{name: "adapter normalize unknown", args: []string{"adapter", "normalize", "missing", invalid}, wantCode: 1, wantStderr: "unknown adapter"},
+		{name: "adapter normalize missing", args: []string{"adapter", "normalize", "guidellm-fixture-v1", filepath.Join(root, "missing.json")}, wantCode: 1, wantStderr: "open adapter input"},
+		{name: "adapter normalize invalid", args: []string{"adapter", "normalize", "guidellm-fixture-v1", invalid}, wantCode: 1, wantStderr: "invalid adapter input"},
+		{name: "adapter report missing", args: []string{"adapter", "validate", filepath.Join(root, "missing.json")}, wantCode: 1, wantStderr: "open normalized report"},
+		{name: "adapter report invalid", args: []string{"adapter", "digest", invalid}, wantCode: 1, wantStderr: "invalid normalized report"},
+		{name: "evidence invalid", args: []string{"evidence", "validate", invalid}, wantCode: 1, wantStderr: "invalid evidence envelope"},
+		{name: "runtime invalid", args: []string{"runtime", "digest", invalid}, wantCode: 1, wantStderr: "invalid runtime signature"},
+		{name: "change invalid", args: []string{"change", "validate", invalid}, wantCode: 1, wantStderr: "invalid inference change"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			if got := run(tt.args, &stdout, &stderr); got != tt.wantCode {
+				t.Fatalf("run() code = %d, want %d; stdout=%q stderr=%q", got, tt.wantCode, stdout.String(), stderr.String())
+			}
+			if !strings.Contains(stdout.String(), tt.wantStdout) {
+				t.Fatalf("stdout %q does not contain %q", stdout.String(), tt.wantStdout)
+			}
+			if !strings.Contains(stderr.String(), tt.wantStderr) {
+				t.Fatalf("stderr %q does not contain %q", stderr.String(), tt.wantStderr)
+			}
+		})
+	}
+}
+
+func TestFileHelpers(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "artifact.json")
+	if err := atomicWrite(path, []byte("first"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	if err := atomicWrite(path, []byte("second"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil || string(data) != "second" {
+		t.Fatalf("atomic output = %q, %v", data, err)
+	}
+	if err := atomicWrite(filepath.Join(root, "missing", "out"), nil, 0o600); err == nil {
+		t.Fatal("atomicWrite() accepted a missing parent")
+	}
+
+	exclusive := filepath.Join(root, "exclusive")
+	if err := writeExclusive(exclusive, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeExclusive(exclusive, nil, 0o600); !os.IsExist(err) {
+		t.Fatalf("writeExclusive() error = %v, want exists", err)
+	}
+	if got, err := readSmallFile(exclusive); err != nil || string(got) != "secret" {
+		t.Fatalf("readSmallFile() = %q, %v", got, err)
+	}
+	if _, err := readSmallFile(filepath.Join(root, "missing")); err == nil {
+		t.Fatal("readSmallFile() accepted a missing file")
+	}
+	large := filepath.Join(root, "large")
+	if err := os.WriteFile(large, bytes.Repeat([]byte("x"), (64<<10)+1), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readSmallFile(large); err == nil || !strings.Contains(err.Error(), "64 KiB") {
+		t.Fatalf("readSmallFile() error = %v, want size limit", err)
+	}
+}
+
+func copyTree(t *testing.T, source, destination string) {
+	t.Helper()
+	if err := filepath.WalkDir(source, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, err := filepath.Rel(source, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(destination, relative)
+		if entry.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, 0o600)
+	}); err != nil {
+		t.Fatal(err)
 	}
 }
 

@@ -1,8 +1,8 @@
 # Production-readiness and product-value report
 
-Audit date: 2026-07-16
+Audit date: 2026-07-18
 
-Audit baseline: `a3b5439b3b895dfe659952b12af61aed78a39985` plus the hardening changes committed with this report
+Audit baseline: `a5352db63b8bfaae6f2f9bdb0f1759a01d1304fc` plus the coverage-hardening changes committed with this report
 
 Repository: [gaurav-gs7/InferLab](https://github.com/gaurav-gs7/InferLab)
 
@@ -12,7 +12,7 @@ Disposition: **credible pre-alpha release-assurance core; not yet a production-r
 
 InferLab is not another inference simulator. It is a fail-closed release-assurance layer for LLM inference changes. It normalizes evidence from external producers without erasing provenance, decides whether the exact observed evidence is sufficient for declared SLO/cost/fairness policies, and packages the decision into a content-addressed signed safety case.
 
-The current implementation is unusually disciplined for a pre-alpha portfolio project. The core is deterministic, dependency-light, aggressively bounded, strict about evidence class and runtime identity, and backed by race, fuzz, tamper, canonicalization, conformance, and decision-closure tests. The extended audit passed with 78.6% aggregate statement coverage; the safety-sensitive trace, evidence, gate, and safety-case packages measured 90.4%, 90.2%, 81.0%, and 82.8% respectively.
+The current implementation is unusually disciplined for a pre-alpha portfolio project. The core is deterministic, dependency-light, aggressively bounded, strict about evidence class and runtime identity, and backed by race, fuzz, tamper, canonicalization, conformance, and decision-closure tests. The extended audit passed with 90.6% aggregate statement coverage; the safety-sensitive trace, evidence, gate, and safety-case packages measured 90.4%, 90.2%, 90.9%, and 90.4% respectively.
 
 It is still not honest to call the whole product production grade. There is no authorized end-to-end AWS GPU experiment, no broad native upstream adapter support, no observed target-system `PASS` proof, no automated experiment executor/teardown reconciler, and no organizational signing or release-key policy. GitHub `main` is also unprotected, no repository ruleset exists, Actions are not restricted to pinned sources, and Dependabot security updates are disabled. These are release blockers, not documentation footnotes.
 
@@ -95,19 +95,19 @@ Release candidates should use a materially longer fuzz duration, for example `FU
 
 | Package | Coverage |
 | --- | ---: |
-| `cmd/inferlab` | 47.6% |
-| `internal/strictjson` | 74.5% |
-| `pkg/adapter` | 72.7% |
-| `pkg/change` | 83.2% |
+| `cmd/inferlab` | 86.4% |
+| `internal/strictjson` | 90.2% |
+| `pkg/adapter` | 92.6% |
+| `pkg/change` | 95.0% |
 | `pkg/evidence` | 90.2% |
-| `pkg/gate` | 81.0% |
-| `pkg/policy/roundrobin` | 76.2% |
-| `pkg/safetycase` | 82.8% |
+| `pkg/gate` | 90.9% |
+| `pkg/policy/roundrobin` | 90.5% |
+| `pkg/safetycase` | 90.4% |
 | `pkg/scheduler` | 95.9% |
 | `pkg/trace` | 90.4% |
-| **Aggregate** | **78.6%** |
+| **Aggregate** | **90.6% (2,950/3,255 statements)** |
 
-Coverage is useful evidence, not proof of correctness. The CLI percentage is the clearest test-depth opportunity; most happy/error commands are exercised, but every filesystem failure permutation is not. The audit gate enforces a 75% aggregate floor so future work cannot silently erase the current baseline.
+Coverage is useful evidence, not proof of correctness. The added tests emphasize failure semantics and trust boundaries: full CLI safety-case assembly/sign/verify workflows, atomic and exclusive writes, key-size and permission constraints, strict protocol payloads, adapter conformance drift, gate decision closure, uncertainty contracts, safe paths, artifact tampering, and malformed change intent. Both CI and the extended release audit enforce an exact 90% aggregate floor so future work cannot silently erase this baseline.
 
 ## Edge-case and failure-mode coverage
 

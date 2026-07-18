@@ -14,6 +14,9 @@ func TestSchedulerCyclesInStableOrder(t *testing.T) {
 	t.Parallel()
 
 	policy := New()
+	if got := policy.Name(); got != "round-robin" {
+		t.Fatalf("Name() = %q, want round-robin", got)
+	}
 	snapshot := validSnapshot()
 	snapshot.Endpoints[0], snapshot.Endpoints[1] = snapshot.Endpoints[1], snapshot.Endpoints[0]
 	want := []string{"worker-a", "worker-b", "worker-a", "worker-b"}
@@ -28,6 +31,16 @@ func TestSchedulerCyclesInStableOrder(t *testing.T) {
 		if err := scheduler.ValidateDecision(validRequest(), snapshot, decision); err != nil {
 			t.Fatalf("decision contract: %v", err)
 		}
+	}
+}
+
+func TestSchedulerRejectsInvalidInputs(t *testing.T) {
+	t.Parallel()
+	if _, err := New().Select(context.Background(), scheduler.Request{}, validSnapshot()); err == nil {
+		t.Fatal("Select() accepted an invalid request")
+	}
+	if _, err := New().Select(context.Background(), validRequest(), scheduler.ClusterSnapshot{}); err == nil {
+		t.Fatal("Select() accepted an invalid snapshot")
 	}
 }
 

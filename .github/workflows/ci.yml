@@ -40,6 +40,9 @@ jobs:
       - name: Test
         run: go test -coverprofile=coverage.out -covermode=atomic ./...
 
+      - name: Enforce coverage floor
+        run: bash scripts/check-coverage.sh coverage.out 90
+
       - name: Race test
         run: go test -race ./...
 

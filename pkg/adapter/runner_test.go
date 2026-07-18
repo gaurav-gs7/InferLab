@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -75,6 +76,48 @@ func TestRunnerRejectsMismatchedResponse(t *testing.T) {
 	}
 }
 
+func TestRunnerRejectsInvalidConfigurationAndPayloads(t *testing.T) {
+	t.Parallel()
+	request := Request{Schema: ProtocolSchema, SchemaVersion: CurrentVersion, RequestID: "request-1", Operation: OperationCapabilities}
+	tests := []struct {
+		name   string
+		runner Runner
+		ctx    context.Context
+	}{
+		{name: "nil context", runner: helperRunner("serve", 0)},
+		{name: "empty executable", runner: Runner{}, ctx: context.Background()},
+		{name: "negative output limit", runner: Runner{Executable: os.Args[0], MaxOutputBytes: -1}, ctx: context.Background()},
+		{name: "excessive output limit", runner: Runner{Executable: os.Args[0], MaxOutputBytes: (64 << 20) + 1}, ctx: context.Background()},
+		{name: "negative wait delay", runner: Runner{Executable: os.Args[0], WaitDelay: -1}, ctx: context.Background()},
+		{name: "excessive wait delay", runner: Runner{Executable: os.Args[0], WaitDelay: 31 * time.Second}, ctx: context.Background()},
+		{name: "missing executable", runner: Runner{Executable: filepath.Join(t.TempDir(), "missing")}, ctx: context.Background()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := tt.runner.Invoke(tt.ctx, request); err == nil {
+				t.Fatal("Invoke() accepted invalid configuration")
+			}
+		})
+	}
+	if _, err := helperRunner("failure-response", 0).Invoke(context.Background(), request); !errors.Is(err, ErrAdapterFailed) {
+		t.Fatalf("failure response error = %v, want %v", err, ErrAdapterFailed)
+	}
+	if _, err := helperRunner("wrong-payload", 0).Invoke(context.Background(), request); !errors.Is(err, ErrProtocol) {
+		t.Fatalf("wrong payload error = %v, want %v", err, ErrProtocol)
+	}
+	invalid := request
+	invalid.RequestID = "Bad ID"
+	if _, err := helperRunner("serve", 0).Invoke(context.Background(), invalid); !errors.Is(err, ErrProtocol) {
+		t.Fatalf("invalid request error = %v, want %v", err, ErrProtocol)
+	}
+
+	inherited := helperRunner("serve", 0)
+	inherited.InheritEnvironment = true
+	if _, err := inherited.Invoke(context.Background(), request); err != nil {
+		t.Fatalf("inherited environment invocation: %v", err)
+	}
+}
+
 func helperRunner(mode string, limit int64) Runner {
 	return Runner{
 		Executable:     os.Args[0],
@@ -115,6 +158,15 @@ func TestAdapterHelperProcess(t *testing.T) {
 		response.RequestID = "different-id"
 		capabilities := implementation.Capabilities()
 		response.Capabilities = &capabilities
+	case "failure-response":
+		response.Failure = &Failure{Code: "producer-failed", Message: "bounded failure"}
+	case "wrong-payload":
+		input := testInput(GuideLLMAdapterName)
+		report, normalizeErr := implementation.Normalize(input)
+		if normalizeErr != nil {
+			os.Exit(11)
+		}
+		response.Report = &report
 	case "serve":
 		if request.Operation == OperationCapabilities {
 			capabilities := implementation.Capabilities()
