@@ -7,6 +7,8 @@
 [![Safety gate proof](https://github.com/gaurav-gs7/InferLab/actions/workflows/safety-gate.yml/badge.svg)](https://github.com/gaurav-gs7/InferLab/actions/workflows/safety-gate.yml)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
+![InferLab comprehensive release-assurance demo](docs/assets/inferlab-demo.gif)
+
 > **Status:** pre-alpha. Immutable inference-change intent, exact runtime/evidence validity, lossless adapter normalization, fail-closed uncertainty gating, reverified counterexample minimization, and signed offline-verifiable safety cases are implemented. Automated fault execution, real target-system validation, organizational signing policy, and a production `PASS` proof are not shipped claims.
 
 > **Naming:** `InferLab` is a working repository name. It conflicts with Doubleword's existing [Inference Lab](https://github.com/doublewordai/inference-lab) simulator and must be replaced before v0.1. No rename will be performed without an explicit maintainer decision.
